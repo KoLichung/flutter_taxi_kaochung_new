@@ -1,5 +1,6 @@
 class ServerApi{
-  static const _HOST ='45.76.55.51';
+  // static const _HOST ='chinghsien.com';
+  static const _HOST ='app.24hcartaiwan.com';
 
   static const PATH_CREATE_USER = '/api/user/create/';
   static const PATH_USER_TOKEN = '/api/user/token/';
@@ -30,8 +31,8 @@ class ServerApi{
   static const PATH_GET_CURRENT_VERSION= '/api/get_current_version';
 
   static Uri standard({String? path, Map<String, String>? queryParameters}) {
-    print(Uri.http(_HOST, '$path', queryParameters));
-    return Uri.http(_HOST, '$path', queryParameters);
+    print(Uri.https(_HOST, '$path', queryParameters));
+    return Uri.https(_HOST, '$path', queryParameters);
   }
 
 }

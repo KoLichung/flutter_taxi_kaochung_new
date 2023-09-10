@@ -19,7 +19,8 @@ class Case {
   int? owner;
   int? user;
   String? shipState;
-  int? countdownSecond;
+  // int? countdownSecond;
+  DateTime? dispatchTime;
   int? expectSecond;
 
   String? memo;
@@ -47,7 +48,7 @@ class Case {
         this.owner,
         this.user,
         this.shipState,
-        this.countdownSecond,
+        this.dispatchTime,
         this.expectSecond,
         this.memo,
         this.timeMemo,
@@ -89,8 +90,8 @@ class Case {
     }else{
       shipState = '';
     }
-    if(json['countdown_second']!=null){
-      countdownSecond = json['countdown_second'];
+    if(json['dispatch_time']!=null){
+      dispatchTime = DateTime.parse(json['dispatch_time']);
     }
     if(json['expect_second']!=null){
       expectSecond = json['expect_second'];

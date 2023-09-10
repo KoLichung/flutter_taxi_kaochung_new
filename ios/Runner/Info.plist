@@ -47,11 +47,13 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>This app needs access to location when open and in the background.</string>
+	<string>這個 App 需要知道您的位置，以告訴您附近案件。This app needs access to location to notify your nearby case.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>這個 App 需要知道您的位置，以告訴您附近案件。This app needs access to location to notify your nearby case.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>這個 App 需要知道您的位置，以回報案件狀態。This app needs access to location to update case status.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>這個 App 需要知道您的移動狀態，以告訴您附近案件。This app needs access your motion to notify your nearby case.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>
@@ -67,15 +69,13 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>

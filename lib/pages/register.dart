@@ -185,6 +185,7 @@ class _RegisterState extends State<Register> {
                   margin: const EdgeInsets.symmetric(horizontal: 30,vertical: 20),
                   child: CustomElevatedButton(
                     title: widget.isEdit ? '確認修改' : '確認註冊',
+                    theHeight: 46,
                     onPressed: (){
                         if (_formKey.currentState!.validate()) {
                           // ScaffoldMessenger.of(context).showSnackBar(
@@ -552,6 +553,7 @@ class _RegisterState extends State<Register> {
           carTeams = List<CarTeam>.from(parsedListJson.map((i) => CarTeam.fromJson(i)));
 
           for(var carTeam in carTeams){
+            print(carTeam.name!);
             carTeamsString.add(carTeam.name!);
           }
           dropdownValue = carTeamsString.first;

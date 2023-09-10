@@ -32,6 +32,7 @@ class _LogInState extends State<LogIn> {
   TextEditingController phoneNumberController = TextEditingController();
   TextEditingController pwdTextController = TextEditingController();
 
+  bool isLoading = false;
 
   Future<void> getAPNSToken() async {
     FirebaseMessaging.instance.requestPermission(
@@ -99,20 +100,33 @@ class _LogInState extends State<LogIn> {
     if(token!=null){
       userModel.token = token;
 
-      String? userString = prefs.getString('user');
-      if(userString!=null){
-        Map<String, dynamic> userMap = jsonDecode(userString);
-        User user = User.fromJson(userMap);
-        userModel.setUser(user);
+      User? user = await _getUserData(token);
+      userModel.setUser(user);
 
-        if(user.isPassed!){
-          userModel.isOnline = true;
-        }else{
-          userModel.isOnline = false;
-        }
-
-        Navigator.of(context).pushNamed('/main');
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool('isOnline') != null){
+        userModel.isOnline = prefs.getBool('isOnline')!;
+      }else{
+        userModel.isOnline = false;
       }
+
+      Navigator.of(context).pushNamed('/main');
+
+      // String? userString = prefs.getString('user');
+      // if(userString!=null){
+      //   Map<String, dynamic> userMap = jsonDecode(userString);
+      //   User user = User.fromJson(userMap);
+      //   userModel.setUser(user);
+      //
+      //
+      //   // if(user.isPassed!){
+      //   //   userModel.isOnline = true;
+      //   // }else{
+      //   //   userModel.isOnline = false;
+      //   // }
+      //
+      //   Navigator.of(context).pushNamed('/main');
+      // }
     }
   }
 
@@ -144,7 +158,10 @@ class _LogInState extends State<LogIn> {
     return Scaffold(
       // appBar: AppBar(),
       backgroundColor: Colors.black54,
-      body: Center(
+      body: isLoading?
+      const Center(child: CircularProgressIndicator())
+          :
+      Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children:[
@@ -317,7 +334,6 @@ class _LogInState extends State<LogIn> {
 
         Navigator.of(context).pushNamed('/main');
         // Navigator.pop(context, 'ok');
-
       }else{
         print(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -328,10 +344,14 @@ class _LogInState extends State<LogIn> {
       }
 
     }catch(e){
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("電話號碼 或 密碼錯誤！"),
+          )
+      );
       print(e);
     }
   }
-
 
   Future<void> _lineSignIn(BuildContext context) async {
     try {
@@ -417,6 +437,9 @@ class _LogInState extends State<LogIn> {
   }
 
   Future<User> _getUserData(String token) async {
+    isLoading = true;
+    setState(() {});
+
     String path = ServerApi.PATH_USER_DATA;
     try {
       final response = await http.get(
@@ -439,12 +462,19 @@ class _LogInState extends State<LogIn> {
       await prefs.setString('user_token', token);
       await prefs.setString('user', jsonEncode(theUser));
 
+      isLoading = false;
+      setState(() {});
+
       return theUser;
     } catch (e) {
       print(e);
 
       //token過期, 需重新登入
       _deleteUserToken();
+
+      isLoading = false;
+      setState(() {});
+
       return User();
     }
   }

@@ -25,8 +25,13 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
+// flutter_background_geolocation
+Project background_geolocation = project(':flutter_background_geolocation')
+apply from: "${background_geolocation.projectDir}/background_geolocation.gradle"
+
 android {
     compileSdkVersion 33
+//    compileSdkVersion rootProject.ext.compileSdkVersion
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -40,9 +45,10 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-build-configuration.
         minSdkVersion 21
-        targetSdkVersion flutter.targetSdkVersion
-        versionCode 14
-        versionName '1.0.13'
+//        targetSdkVersion flutter.targetSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 39
+        versionName '1.0.38'
     }
 
     buildTypes {
@@ -50,6 +56,8 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig signingConfigs.debug
+            shrinkResources false
+            proguardFiles "${background_geolocation.projectDir}/proguard-rules.pro"
         }
     }
 }

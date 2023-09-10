@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 
 class UserModel extends ChangeNotifier {
@@ -23,17 +25,21 @@ class UserModel extends ChangeNotifier {
   String? currentAppVersion;
   int? currentAppVersionNumber;
 
-  // Position? currentPosition;
+  Position? currentPosition;
 
   void setUser(User theUser){
     _user = theUser;
     notifyListeners();
   }
 
-  void removeUser(BuildContext context){
+  Future<void> removeUser(BuildContext context) async {
     _user = User();
     token = null;
     isOnline = false;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isOnline', false);
+
     notifyListeners();
   }
 

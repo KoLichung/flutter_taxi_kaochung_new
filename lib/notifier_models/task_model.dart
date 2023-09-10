@@ -1,11 +1,12 @@
 import 'package:flutter/cupertino.dart';
-
+import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 import '../models/case.dart';
 
 class TaskModel extends ChangeNotifier {
 
   List<Case> cases = [];
 
+  bool isCanceled = false;
   bool isOnTask = false;
   // List<Position> routePositions = [];
   double currentTaskPrice = 50.0;
@@ -33,6 +34,7 @@ class TaskModel extends ChangeNotifier {
 
   Future<void> setCurrentTaskPrice() async {
     int secondTotal = 0;
+
     if(startTime!=null){
       DateTime currentTime = DateTime.now();
       secondTotal = currentTime.difference(startTime!).inSeconds;

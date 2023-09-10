@@ -128,7 +128,7 @@ class _NewPassengerDialogState extends State<NewPassengerDialog> {
                       print("case empty");
                       taskModel.addCase(theCase!);
                       Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => CurrentTask()));
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => CurrentTask(theCase: theCase!)));
                     }else{
                       taskModel.addCase(theCase!);
                       Navigator.pop(context);

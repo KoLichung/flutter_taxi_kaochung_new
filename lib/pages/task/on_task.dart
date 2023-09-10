@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_taxi_chinghsien/notifier_models/task_model.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/home_page.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/on_task_change_address_dialog.dart';
@@ -19,7 +20,7 @@ import '../../notifier_models/user_model.dart';
 import '../../widgets/custom_elevated_button.dart';
 import '../../widgets/custom_small_elevated_button.dart';
 import 'on_task_passenger_off_dialog.dart';
-
+import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 
 class OnTask extends StatefulWidget {
 
@@ -39,6 +40,7 @@ class _OnTaskState extends State<OnTask> {
 
   bool isNextTaskVisible = false;
   bool isRequesting = false;
+  bool isAddressCopied = false;
 
   TextEditingController priceController = TextEditingController();
   Timer? _taskTimer;
@@ -50,30 +52,32 @@ class _OnTaskState extends State<OnTask> {
   bool isTimerButtonEnable = false;
   Timer? _buttonTimer;
   int _buttonSeconds = 300;
+  DateTime? buttonStartTime;
+
 
   DateTime? startTime;
   Timer? _fetchTimer;
 
   Future<void> _startButtonTimer() async {
-    // final prefs = await SharedPreferences.getInstance();
-    // await prefs.setInt('buttonTimeSeconds', 300);
-    // await prefs.setBool('isReduceButtonTime', true);
 
-    _buttonTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
-      // final prefs = await SharedPreferences.getInstance();
-      // await prefs.reload();
-      // _buttonSeconds = prefs.getInt('buttonTimeSeconds')!;
-      _buttonSeconds = _buttonSeconds -1;
+    buttonStartTime = DateTime.now();
 
-      if (_buttonSeconds <= 0) {
-        isTimerButtonEnable = true;
-        _stopButtonTimer();
+    _buttonTimer ??= Timer.periodic(const Duration(seconds: 1), (_) async {
 
-        // 第一次歸零會 start task timer, 用 _taskTimer == null 做檢查~
-        _startTaskTimer();
-      }
-      setState(() {});
-    });
+        if(buttonStartTime!=null){
+          DateTime currentTime = DateTime.now();
+          int diffSecondsTotal = currentTime.difference(buttonStartTime!).inSeconds;
+          _buttonSeconds = 300 -  diffSecondsTotal;
+
+          if (_buttonSeconds <= 0) {
+            isTimerButtonEnable = true;
+            _stopButtonTimer();
+          }
+        }
+
+        setState(() {});
+      });
+
   }
 
   Future<void> _stopButtonTimer() async {
@@ -81,11 +85,7 @@ class _OnTaskState extends State<OnTask> {
       _buttonTimer!.cancel();
       _buttonTimer = null;
     }
-    // final prefs = await SharedPreferences.getInstance();
-    // await prefs.setInt('buttonTimeSeconds', 300);
-    // await prefs.setBool('isReduceButtonTime', false);
     _buttonSeconds = 300;
-    // setState((){});
   }
 
   Future<void> _resetButtonTimer() async {
@@ -105,12 +105,18 @@ class _OnTaskState extends State<OnTask> {
 
     offAddress = widget.theCase.offAddress!;
 
-    _startButtonTimer();
+    if(widget.theCase.caseState=='arrived'){
+      _startButtonTimer();
+      var taskModel = context.read<TaskModel>();
+      _fetchTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+        _fetchCaseState(userToken!, taskModel.cases.first.id!);
+      });
+    }else if(widget.theCase.caseState=='catched'){
+      taskStatus = '載客中';
+      isPassengerOnBoard = true;
+      _startTaskTimer();
+    }
 
-    var taskModel = context.read<TaskModel>();
-    _fetchTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      _fetchCaseState(userToken!, taskModel.cases.first.id!);
-    });
   }
 
   Future<void> _startTaskTimer() async {
@@ -118,6 +124,13 @@ class _OnTaskState extends State<OnTask> {
     // await prefs.setBool('isOnTask', true);
     var taskModel = context.read<TaskModel>();
     taskModel.startTime ??= DateTime.now();
+
+    if (taskModel.isOnTask==false) {
+      taskModel.isOnTask = true;
+      bg.BackgroundGeolocation.setOdometer(0.0).catchError((error) {
+        print('********** [resetOdometer] ERROR: $error');
+      });
+    }
 
     _taskTimer ??= Timer.periodic(const Duration(seconds: 5), (timer) {
         // 5 秒計算一次時間
@@ -165,13 +178,13 @@ class _OnTaskState extends State<OnTask> {
           child:Consumer<TaskModel>(builder: (context, taskModel, child){
             return Column(
               children: [
-                Consumer<TaskModel>(builder: (context, taskModel, child){
-                  if (taskModel.routePositions.isNotEmpty) {
-                    return Text('目前的位置:${taskModel.routePositions.last.latitude.toStringAsFixed(3)}, ${taskModel.routePositions.last.longitude.toStringAsFixed(3)}');
-                  }else{
-                    return const Text("尚未 update 位置");
-                  }
-                }),
+                // Consumer<TaskModel>(builder: (context, taskModel, child){
+                //   if (taskModel.routePositions.isNotEmpty) {
+                //     return Text('目前的位置:${taskModel.routePositions.last.latitude.toStringAsFixed(3)}, ${taskModel.routePositions.last.longitude.toStringAsFixed(3)}');
+                //   }else{
+                //     return const Text("尚未 update 位置");
+                //   }
+                // }),
                 Consumer<TaskModel>(builder: (context, taskModel, child){
                   return Text('目前的 公里數:${taskModel.totalDistance.toStringAsFixed(3)}km, 所有秒數：${taskModel.getSecondsTotal()}秒');
                 }),
@@ -236,40 +249,46 @@ class _OnTaskState extends State<OnTask> {
                           const Text("下車地：", style:  TextStyle(color: AppColor.primary, fontSize: 20,)),
                           const SizedBox(width: 10,),
                           CustomSmallElevatedButton(
-                              icon: const Icon(Icons.near_me_outlined,size: 16,),
-                              title: '導航',
-                              color: AppColor.primary,
+                              icon: const Icon(Icons.copy,size: 16,),
+                              title: '複製',
+                              color: isAddressCopied? Colors.grey : AppColor.primary,
                               onPressed: () async {
+                                if(!isAddressCopied){
+                                  isAddressCopied = true;
+                                }
+                                await Clipboard.setData(ClipboardData(text:  offAddress));
+                                ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('已複製下車地址')));
+                                setState(() {});
                                 // _launchMap(offAddress);
                                 // MapsLauncher.launchQuery(offAddress);
 
-                                bool isGoogleMaps = await MapLauncher.isMapAvailable(MapType.google) ?? false;
-                                print('onLat ${taskModel.cases.first.offLat} onLng ${taskModel.cases.first.offLng}');
-                                try{
-                                  if (isGoogleMaps == true) {
-                                    await MapLauncher.showDirections(
-                                      mapType: MapType.google,
-                                      directionsMode: DirectionsMode.driving,
-                                      destinationTitle: taskModel.cases.first.onAddress!,
-                                      destination: Coords(
-                                        double.parse(taskModel.cases.first.offLat!),
-                                        double.parse(taskModel.cases.first.offLng!),
-                                      ),
-                                    );
-                                  } else {
-                                    await MapLauncher.showDirections(
-                                      mapType: MapType.apple,
-                                      directionsMode: DirectionsMode.driving,
-                                      destinationTitle: taskModel.cases.first.onAddress!,
-                                      destination: Coords(
-                                        double.parse(taskModel.cases.first.offLat!),
-                                        double.parse(taskModel.cases.first.offLng!),
-                                      ),
-                                    );
-                                  }
-                                }catch(e){
-                                  print(e);
-                                }
+                                // bool isGoogleMaps = await MapLauncher.isMapAvailable(MapType.google) ?? false;
+                                // print('onLat ${taskModel.cases.first.offLat} onLng ${taskModel.cases.first.offLng}');
+                                // try{
+                                //   if (isGoogleMaps == true) {
+                                //     await MapLauncher.showDirections(
+                                //       mapType: MapType.google,
+                                //       directionsMode: DirectionsMode.driving,
+                                //       destinationTitle: taskModel.cases.first.onAddress!,
+                                //       destination: Coords(
+                                //         double.parse(taskModel.cases.first.offLat!),
+                                //         double.parse(taskModel.cases.first.offLng!),
+                                //       ),
+                                //     );
+                                //   } else {
+                                //     await MapLauncher.showDirections(
+                                //       mapType: MapType.apple,
+                                //       directionsMode: DirectionsMode.driving,
+                                //       destinationTitle: taskModel.cases.first.onAddress!,
+                                //       destination: Coords(
+                                //         double.parse(taskModel.cases.first.offLat!),
+                                //         double.parse(taskModel.cases.first.offLng!),
+                                //       ),
+                                //     );
+                                //   }
+                                // }catch(e){
+                                //   print(e);
+                                // }
 
                               })
                         ],
@@ -350,23 +369,18 @@ class _OnTaskState extends State<OnTask> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           CustomElevatedButton(
-                              onPressed: (){
-                                setState(() {
-                                  taskStatus = '載客中';
-                                  isPassengerOnBoard = true;
-                                  _stopButtonTimer();
-                                  _startTaskTimer();
-                                  _putCaseCatched(userToken!, widget.theCase.id!);
-                                });
-                              },
-                              title: '乘客已上車'),
+                            theHeight: 46,
+                            onPressed: (){
+                              _putCaseCatched(userToken!, widget.theCase.id!);
+                            },
+                            title: '乘客已上車'
+                          ),
                           ElevatedButton(
                               onPressed: isTimerButtonEnable?
                                   (){
                                 // here need to notify server
                                 if(!isRequesting){
                                   _putCaseNotifyCustomer(userToken!, widget.theCase.id!);
-                                  _resetButtonTimer();
                                 }else{
                                   ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('回傳資料中~')));
                                 }
@@ -379,7 +393,7 @@ class _OnTaskState extends State<OnTask> {
                               child:
                                 isTimerButtonEnable
                                     ?
-                                const Text('乘客未上車 \n05:00',style: TextStyle(fontSize: 20),textAlign: TextAlign.center,)
+                                const Text('乘客未上車\n05:00',style: TextStyle(fontSize: 20),textAlign: TextAlign.center,)
                                     :
                                 Text('乘客未上車 \n ${_getButtonTimeString(_buttonSeconds!)}',style: TextStyle(fontSize: 20),textAlign: TextAlign.center,),
                           ),
@@ -387,16 +401,17 @@ class _OnTaskState extends State<OnTask> {
                       )
                           :
                       CustomElevatedButton(
-                          onPressed: (){
-                            if(!isRequesting){
-                              var userModel = context.read<UserModel>();
-                              int intPrice = double.parse(priceController.text).toInt();
-                              _putCaseFinish(userModel.token!, widget.theCase.id!, offAddress, intPrice);
-                            }else{
-                              ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('回傳資料中~')));
-                            }
-                          },
-                          title: '乘客下車'
+                        theHeight: 46,
+                        onPressed: (){
+                          if(!isRequesting){
+                            var userModel = context.read<UserModel>();
+                            int intPrice = double.parse(priceController.text).toInt();
+                            _putCaseFinish(userModel.token!, widget.theCase.id!, offAddress, intPrice);
+                          }else{
+                            ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('回傳資料中~')));
+                          }
+                        },
+                        title: '乘客下車'
                       ),
                     ],
                   ),
@@ -442,15 +457,21 @@ class _OnTaskState extends State<OnTask> {
       Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
       if(map['message']=='ok'){
         ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('已告知派單總機，請乘客趕快上車！')));
+        _resetButtonTimer();
+        var taskModel = context.read<TaskModel>();
+        if(taskModel.startTime==null){
+          _startTaskTimer();
+        }
       }else{
         ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('可能網路不佳，請再試一次！')));
       }
-
+      isRequesting = false;
     } catch (e) {
       print(e);
+      isRequesting = false;
       return "error";
     }
-    isRequesting = false;
+
   }
 
   Future _putCaseCatched(String token, int caseId) async {
@@ -475,16 +496,24 @@ class _OnTaskState extends State<OnTask> {
 
       Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
       if(map['message']=='ok'){
-        setState(() {});
+        // setState(() {});
+        setState(() {
+          taskStatus = '載客中';
+          isPassengerOnBoard = true;
+          _stopButtonTimer();
+          _startTaskTimer();
+        });
       }else{
         ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('可能網路不佳，請再試一次！')));
       }
+      isRequesting = false;
 
     } catch (e) {
       print(e);
+      isRequesting = false;
       return "error";
     }
-    isRequesting = false;
+
   }
 
   Future _putCaseFinish(String token, int caseId, String offAddress, int caseMoney) async {
@@ -539,20 +568,23 @@ class _OnTaskState extends State<OnTask> {
             });
 
         if(taskModel.cases.isEmpty) {
+          taskModel.isCanceled = false;
           Navigator.popUntil(context, ModalRoute.withName('/main'));
-        }else{
-          Navigator.pop(context);
         }
+        // else{
+        //   Navigator.pop(context);
+        // }
 
       }else{
         ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('可能網路不佳，請再試一次！')));
       }
-
+      isRequesting = false;
     } catch (e) {
       print(e);
+      isRequesting = false;
       return "error";
     }
-    isRequesting = false;
+
   }
 
   Future _fetchCaseState(String token, int caseId) async {
@@ -588,7 +620,8 @@ class _OnTaskState extends State<OnTask> {
         var taskModel = context.read<TaskModel>();
         taskModel.resetTask();
         //回到首頁並帶參數
-        Navigator.pop(context,'canceled');
+        taskModel.isCanceled = true;
+        Navigator.popUntil(context, ModalRoute.withName('/main'));
       }
 
       setState(() {});

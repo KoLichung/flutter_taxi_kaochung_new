@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_line_sdk/flutter_line_sdk.dart';
 import 'package:flutter_taxi_chinghsien/config/serverApi.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../color.dart';
@@ -13,6 +10,7 @@ import '../../widgets/custom_member_button.dart';
 import '../register.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 
 class MyAccountPage extends StatefulWidget {
   const MyAccountPage({Key? key}) : super(key: key);
@@ -108,6 +106,7 @@ class _MyAccountPageState extends State<MyAccountPage> {
                 margin: const EdgeInsets.fromLTRB(30,20,30,0),
                 child: CustomElevatedButton(
                   title: '登出',
+                  theHeight: 46,
                   onPressed: () async {
                     // Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const MyHomePage()), (Route<dynamic> route) => false, );
                     print('here');
@@ -259,6 +258,8 @@ class _MyAccountPageState extends State<MyAccountPage> {
         //   userModel.positionStreamSubscription!.cancel();
         //   userModel.positionStreamSubscription = null;
         // }
+        bg.BackgroundGeolocation.stop();
+
         Navigator.popUntil(context, (Route<dynamic> route) => route.isFirst);
       }
 

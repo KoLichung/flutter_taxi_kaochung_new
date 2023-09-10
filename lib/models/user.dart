@@ -17,6 +17,9 @@ class User {
   int? leftMoney;
   bool? isPassed;
 
+  int? violation_time;
+  DateTime? penalty_datetime;
+
   User(
       {this.id,
         this.phone,
@@ -34,7 +37,9 @@ class User {
         this.isOnline,
         this.leftMoney,
         this.isPassed,
-        this.carMemo
+        this.carMemo,
+        this.violation_time,
+        this.penalty_datetime,
       });
 
   User.fromJson(Map<String, dynamic> json) {
@@ -63,6 +68,17 @@ class User {
     leftMoney = json['left_money'];
     isPassed = json['is_passed'];
     carMemo = json['car_memo'];
+    if(json['penalty_datetime']!=null){
+      // penalty_datetime = json['penalty_datetime'];
+      penalty_datetime = DateTime.parse(json["penalty_datetime"]);
+    }else{
+      penalty_datetime = null;
+    }
+    if(json['violation_time']!=null){
+      violation_time = json['violation_time'];
+    }else{
+      violation_time = 0;
+    }
   }
 
   Map<String, dynamic> toJson() {

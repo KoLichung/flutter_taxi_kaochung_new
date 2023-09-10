@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/services.dart';
 import 'package:flutter_taxi_chinghsien/notifier_models/task_model.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/current_task_report_dialog.dart';
 import 'package:http/http.dart' as http;
@@ -23,7 +24,9 @@ import 'package:map_launcher/map_launcher.dart';
 
 class CurrentTask extends StatefulWidget {
 
-  const CurrentTask({Key? key}) : super(key: key);
+  final Case theCase;
+
+  const CurrentTask({Key? key,required this.theCase}) : super(key: key);
 
   @override
   _CurrentTaskState createState() => _CurrentTaskState();
@@ -37,8 +40,15 @@ class _CurrentTaskState extends State<CurrentTask> {
   bool isNextTaskVisible = false;
   String? userToken;
   bool isRequesting = false;
+  bool isAddressCopied = false;
 
   Timer? _fetchTimer;
+
+  int initExpectedSeconds = 0;
+  int remainSeconds = 0;
+  DateTime? startTime;
+
+  Timer? _remainTimer;
 
   @override
   void initState() {
@@ -48,12 +58,31 @@ class _CurrentTaskState extends State<CurrentTask> {
     var userModel = context.read<UserModel>();
     userToken = userModel.token!;
 
-    var taskModel = context.read<TaskModel>();
+    // var taskModel = context.read<TaskModel>();
 
-    _fetchTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      _fetchCaseState(userToken!, taskModel.cases.first.id!);
-    });
+    //check case state
+    // if(taskModel.cases.first.caseState!='way_to_catch'){
+    //   Navigator.push(context, MaterialPageRoute(builder: (context) => OnTask(theCase: taskModel.cases.first)));
+    // }else{
+      initExpectedSeconds = widget.theCase.expectSecond! + 120;
+      remainSeconds = initExpectedSeconds;
+      startTime ??= DateTime.now();
+
+      _remainTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
+        if(startTime!=null){
+          DateTime currentTime = DateTime.now();
+          int diffSecondsTotal = currentTime.difference(startTime!).inSeconds;
+          remainSeconds = initExpectedSeconds -  diffSecondsTotal;
+        }
+        setState(() {});
+      });
+
+      _fetchTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+        _fetchCaseState(userToken!, widget.theCase.id!);
+      });
+    // }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -81,20 +110,6 @@ class _CurrentTaskState extends State<CurrentTask> {
           ),
           body: SingleChildScrollView(
             child:Consumer<TaskModel>(builder: (context, taskModel, child){
-
-              // checkAvailableAndShow() async {
-              //   bool isGoogleMaps =
-              //       await MapLauncher.isMapAvailable(MapType.google) ?? false;
-              //
-              //   if (isGoogleMaps) {
-              //     await MapLauncher.showDirections(
-              //       mapType: MapType.google,
-              //       directionsMode: DirectionsMode.driving,
-              //       destinationTitle: taskModel.cases.first.onAddress!,
-              //       destination: Coords(25.033582,121.501609) ,
-              //     );
-              //   }
-              // }
               return Column(
                 children: [
                   // current task
@@ -131,9 +146,50 @@ class _CurrentTaskState extends State<CurrentTask> {
                               children: [
                                 const Text('上車地：'),
                                 CustomSmallElevatedButton(
-                                    icon: const Icon(Icons.near_me_outlined,size: 16,),
+                                    icon: const Icon(Icons.copy,size: 16,),
+                                    title: '複製',
+                                    color: isAddressCopied? Colors.grey : AppColor.primary,
+                                    onPressed: ()async{
+                                      if(!isAddressCopied){
+                                        isAddressCopied = true;
+                                      }
+                                      await Clipboard.setData(ClipboardData(text:  taskModel.cases.first.onAddress));
+                                      ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('已複製上車地址')));
+                                      setState(() {});
+                                      // bool isGoogleMaps = await MapLauncher.isMapAvailable(MapType.google) ?? false;
+                                      // print('onLat ${taskModel.cases.first.onLat} onLng ${taskModel.cases.first.onLng}');
+                                      // try{
+                                      //   if (isGoogleMaps == true) {
+                                      //     await MapLauncher.showDirections(
+                                      //       mapType: MapType.google,
+                                      //       directionsMode: DirectionsMode.driving,
+                                      //       destinationTitle: taskModel.cases.first.onAddress!,
+                                      //       destination: Coords(
+                                      //         double.parse(taskModel.cases.first.onLat!),
+                                      //         double.parse(taskModel.cases.first.onLng!),
+                                      //       ),
+                                      //     );
+                                      //   } else {
+                                      //     await MapLauncher.showDirections(
+                                      //       mapType: MapType.apple,
+                                      //       directionsMode: DirectionsMode.driving,
+                                      //       destinationTitle: taskModel.cases.first.onAddress!,
+                                      //       destination: Coords(
+                                      //         double.parse(taskModel.cases.first.onLat!),
+                                      //         double.parse(taskModel.cases.first.onLng!),
+                                      //       ),
+                                      //     );
+                                      //   }
+                                      // }catch(e){
+                                      //   print(e);
+                                      // }
+                                      // MapsLauncher.launchQuery(taskModel.cases.first.onAddress!);
+                                    }),
+                                const SizedBox(width: 5,),
+                                CustomSmallElevatedButton(
+                                    icon: const Icon(Icons.directions,size: 16,),
                                     title: '導航',
-                                    color: AppColor.primary,
+                                    color: isAddressCopied? Colors.grey : AppColor.primary,
                                     onPressed: ()async{
                                       bool isGoogleMaps = await MapLauncher.isMapAvailable(MapType.google) ?? false;
                                       print('onLat ${taskModel.cases.first.onLat} onLng ${taskModel.cases.first.onLng}');
@@ -162,7 +218,7 @@ class _CurrentTaskState extends State<CurrentTask> {
                                       }catch(e){
                                         print(e);
                                       }
-                                      // MapsLauncher.launchQuery(taskModel.cases.first.onAddress!);
+                                      MapsLauncher.launchQuery(taskModel.cases.first.onAddress!);
                                     })
                               ],
                             ),
@@ -204,12 +260,14 @@ class _CurrentTaskState extends State<CurrentTask> {
                               (taskModel.cases.first.offAddress!="")?Text('下車地：${taskModel.cases.first.offAddress}'):Container(),
                               (taskModel.cases.first.timeMemo!="")?Text('時間：${taskModel.cases.first.timeMemo}'):Container(),
                               (taskModel.cases.first.memo!="")?Text('備註：${taskModel.cases.first.memo}'):Container(),
+                              Text(_getExpectTimeString(remainSeconds)),
                             ],
                           )
                               :
                           Container(),
                           const SizedBox(height: 10,),
                           CustomElevatedButton(
+                            theHeight: 46,
                             onPressed: (){
                               if(!isRequesting){
                                 _putCaseArrived(userToken!, taskModel.cases.first.id!);
@@ -222,89 +280,27 @@ class _CurrentTaskState extends State<CurrentTask> {
                         ],
                       )
                   ),
-                  // next task
-                  (taskModel.cases.length>1)?
-                  Container(
-                      margin: const EdgeInsets.all(16),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                          border: Border.all(color: AppColor.primary, width: 1),
-                          borderRadius: BorderRadius.circular(3)),
-                      child:Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              RichText(
-                                text: TextSpan(
-                                  text: '下個任務：',
-                                  style: const TextStyle(color: Colors.black87, fontSize: 18,),
-                                  children: <TextSpan>[
-                                    TextSpan(text: taskStatus,style: const TextStyle(color: AppColor.red,fontSize: 22,fontWeight: FontWeight.bold)),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            margin: const EdgeInsets.fromLTRB(0,10,0,0),
-                            child: Row(
-                              children: [
-                                const Text('上車地：'),
-                                CustomSmallElevatedButton(
-                                    icon: const Icon(Icons.near_me_outlined,size: 16,),
-                                    title: '導航',
-                                    color: AppColor.primary,
-                                    onPressed: (){
-                                      // _launchMap(widget.theCase.onAddress!);
-                                      MapsLauncher.launchQuery(taskModel.cases[1].onAddress!);
-                                    })
-                              ],
-                            ),
-                          ),
-                          Container(
-                            child: Text('${taskModel.cases[1].onAddress}'),
-                          ),
-                          Container(
-                            margin: const EdgeInsets.fromLTRB(0,10,0,0),
-                            child: Row(
-                              children: [
-                                const Text('乘客：'),
-                                const SizedBox(width: 10),
-                                CustomSmallElevatedButton(
-                                    icon: const Icon(Icons.call_outlined,size: 16,),
-                                    title: '電話',
-                                    color: AppColor.primary,
-                                    onPressed: (){
-                                      Uri uri = Uri.parse("tel://${taskModel.cases[1].customerPhone}");
-                                      launchUrl(uri);
-                                    })
-                              ],
-                            ),
-                          ),
-                          Container(
-                            margin: const EdgeInsets.fromLTRB(0,0,0,10),
-                            child: Row(
-                              children: [
-                                Text(taskModel.cases[1].customerName!),
-                                const SizedBox(width: 10),
-                                Text('${taskModel.cases[1].customerPhone}'),
-                              ],
-                            ),
-                          ),
-                          (taskModel.cases[1].memo!="")?Text('備註：${taskModel.cases[1].memo}'):Container(),
-                        ],
-                      )
-                  )
-                      :
-                  Container()
                 ],
               );
             }),
           ),
         )
     );
+  }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
+    if(_remainTimer!=null){
+      print('cancel remain timer');
+      _remainTimer!.cancel();
+      _remainTimer = null;
+    }
+    if(_fetchTimer!=null){
+      _fetchTimer!.cancel();
+      _fetchTimer = null;
+    }
   }
 
   //司機到了
@@ -340,21 +336,23 @@ class _CurrentTaskState extends State<CurrentTask> {
           _fetchTimer = null;
         }
         var taskModel = context.read<TaskModel>();
-        taskModel.isOnTask = true;
+        // taskModel.isOnTask = true;
+        taskModel.cases.first.caseState = 'arrived';
         final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => OnTask(theCase: taskModel.cases.first)));
         if(result == 'canceled'){
-          Navigator.pop(context,'canceled');
+          Navigator.popUntil(context, ModalRoute.withName('/main'));
         }
         setState(() {});
       }else{
         ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('可能網路不佳，請再試一次！')));
       }
-
+      isRequesting = false;
     } catch (e) {
       print(e);
+      isRequesting = false;
       return "error";
     }
-    isRequesting = false;
+    // isRequesting = false;
   }
 
   Future _fetchCaseState(String token, int caseId) async {
@@ -381,15 +379,37 @@ class _CurrentTaskState extends State<CurrentTask> {
         }
 
         var taskModel = context.read<TaskModel>();
+        taskModel.isCanceled = true;
         taskModel.resetTask();
         //回到首頁並帶參數
-        Navigator.pop(context,'canceled');
+        Navigator.popUntil(context, ModalRoute.withName('/main'));
       }
 
       setState(() {});
 
     } catch (e) {
       print(e);
+    }
+  }
+
+  String _getExpectTimeString(int seconds){
+    if (seconds >= 0){
+      int integer = seconds ~/ 60;
+      int remainder = seconds % 60;
+      if (integer == 0){
+        return '預估抵達時間：$remainder 秒';
+      }else{
+        return '預估抵達時間：$integer 分 $remainder 秒';
+      }
+    }else{
+      seconds = -seconds;
+      int integer = seconds ~/ 60;
+      int remainder = seconds % 60;
+      if (integer == 0){
+        return '預估抵達時間：- $remainder 秒';
+      }else {
+        return '預估抵達時間：- $integer 分 $remainder 秒';
+      }
     }
   }
 

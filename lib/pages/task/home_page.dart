@@ -3,24 +3,28 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_taxi_chinghsien/notifier_models/task_model.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/cancel_dialog.dart';
+import 'package:flutter_taxi_chinghsien/pages/task/disclosure_dialog.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/serverApi.dart';
 import '../../color.dart';
-import '../../main.dart';
 import '../../models/case.dart';
 import '../../notifier_models/user_model.dart';
 import '../../widgets/custom_elevated_button.dart';
 import 'current_task.dart';
 import 'dart:io';
+import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 
+import 'on_task.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -32,10 +36,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
 
   bool _isOnlining = false;
-  // Position? currentPosition;
-
   Timer? _timer;
-  int timerPeriod = 2;
+  int timerPeriod = 3;
 
   late List<Case> myCases = <Case>[];
 
@@ -46,15 +48,25 @@ class _HomePageState extends State<HomePage> {
 
   Timer? _taskTimer;
   int _taskWaitingTime = 17;
-  bool isRefusing = false;
 
-  void _startTaskTimer(int currentTime) {
-    _taskWaitingTime = currentTime;
+  bool isRefusing = false;
+  bool isCaseConfirming = false;
+
+  // int _violation_time = 0;
+  // DateTime? _penalty_datetime;
+
+  void _startTaskTimer() {
+    DateTime dispatchTime = myCases.first.dispatchTime!;
+    print('dispatch time $dispatchTime');
+
     const oneSec = Duration(seconds: 1);
-    _taskTimer = Timer.periodic(
-      oneSec, (Timer timer) {
-        _taskWaitingTime--;
-        if(_taskWaitingTime == -1){
+    _taskTimer = Timer.periodic(oneSec, (Timer timer) {
+        DateTime now = DateTime.now();
+        _taskWaitingTime = 18 - now.difference(dispatchTime).inSeconds;
+        print('_taskWaitingTime $_taskWaitingTime');
+        if(_taskWaitingTime <= 0){
+          myCases.clear();
+          _taskWaitingTime = 0;
           if(_taskTimer!=null) {
             print('cancel task timer');
             _taskTimer!.cancel();
@@ -69,16 +81,71 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState(){
     super.initState();
-    _handlePermission();
+    // _handlePermission();
     _getLatestAppVersion();
     var userModel = context.read<UserModel>();
 
     if(userModel.currentAppVersion == null){
       _initPackageInfo();
     }
+
     if(userModel.deviceId==null){
+      print('get device info');
       _getDeviceInfo();
+    }else{
+      print('post fcm device');
+      _httpPostFCMDevice();
     }
+
+    bg.BackgroundGeolocation.onLocation((bg.Location location) {
+      print('[location] - $location');
+
+      var userModel = context.read<UserModel>();
+      userModel.currentPosition = Position(longitude: location.coords.longitude, latitude: location.coords.latitude, timestamp: DateTime.now(), accuracy: location.coords.accuracy, altitude: location.coords.altitude, heading: location.coords.heading, speed: location.coords.speed, speedAccuracy: location.coords.accuracy);
+
+
+      if(userModel.isOnline){
+        _fetchUpdateLatLng(userModel.token!, userModel.currentPosition!.latitude, userModel.currentPosition!.longitude);
+      }
+
+      var taskModel = context.read<TaskModel>();
+      if(taskModel.isOnTask){
+        taskModel.totalDistance = location.odometer/1000.0;
+      }
+    });
+
+    bg.BackgroundGeolocation.ready(bg.Config(
+        desiredAccuracy: bg.Config.DESIRED_ACCURACY_HIGH,
+        distanceFilter: 10.0,
+        stopOnTerminate: true,
+        startOnBoot: true,
+        debug: false,
+        stationaryRadius: 25,
+        logLevel: bg.Config.LOG_LEVEL_VERBOSE,
+        //add 2023/06/24 for ios
+        preventSuspend: true,
+        heartbeatInterval: 60,
+        // ===
+        backgroundPermissionRationale: bg.PermissionRationale(
+          title: "允許 {applicationName} 在背景程式使用位置資訊？",
+          message: "為了取得位置並提供您案件資訊，請允許在背景使用您的位置。",
+          positiveAction: "允許",
+          negativeAction: "取消"
+        )
+    )).then((bg.State state) async {
+      if (!state.enabled) {
+        if(userModel.platformType=='android') {
+          await showDialog<String>(
+              context: context,
+              builder: (BuildContext context) {
+                return DisclosureDialog();}
+          );
+          bg.BackgroundGeolocation.start();
+        }else{
+          bg.BackgroundGeolocation.start();
+        }
+      }
+    });
 
     if(userModel.isOnline && userModel.user!.isPassed!){
         _putUpdateOnlineState(userModel.token!, true);
@@ -87,7 +154,9 @@ class _HomePageState extends State<HomePage> {
           // print('Hello world, timer: $timer.tick');
           _fetchCases(userModel.token!);
         });
+        bg.BackgroundGeolocation.start();
     }
+
   }
 
   @override
@@ -110,135 +179,66 @@ class _HomePageState extends State<HomePage> {
     // _showNotification();
     // _checkLocationPermission();
 
-    var userModel = context.read<UserModel>();
-    var taskModel = context.read<TaskModel>();
-
-    // if(userModel.isOnline && userModel.user!.isPassed! && userModel.positionStreamSubscription == null){
-    //   userModel.positionStreamSubscription =  Geolocator.getPositionStream(locationSettings: locationSettings).listen((Position? position) {
-    //     if(position!=null){
-    //       print('${position.latitude.toString()}, ${position.longitude.toString()}');
-    //
-    //       if(userModel.lastUpdateLocationTime !=null && userModel.currentPosition != null){
-    //         DateTime nowTime = DateTime.now();
-    //         DateTime lastTime = userModel.lastUpdateLocationTime!;
-    //         Duration diff = nowTime.difference(lastTime);
-    //         double currentVelocity = calculateSpeed(userModel.currentPosition!, position, diff.inSeconds);
-    //
-    //         if(currentVelocity.isNaN){
-    //           userModel.positionUpdateCount = 0;
-    //           _fetchUpdateLatLng(userModel.token!, position.latitude, position.longitude);
-    //         }else if(currentVelocity >= 30 && userModel.positionUpdateCount >= 6){
-    //           userModel.positionUpdateCount = 0;
-    //           _fetchUpdateLatLng(userModel.token!, position.latitude, position.longitude);
-    //         }else if(currentVelocity < 30 && currentVelocity >= 15 && userModel.positionUpdateCount >= 3){
-    //           userModel.positionUpdateCount = 0;
-    //           _fetchUpdateLatLng(userModel.token!, position.latitude, position.longitude);
-    //         }else if(currentVelocity < 15 && currentVelocity >= 5 && userModel.positionUpdateCount >= 2){
-    //           userModel.positionUpdateCount = 0;
-    //           _fetchUpdateLatLng(userModel.token!, position.latitude, position.longitude);
-    //         }else if(currentVelocity < 5 && currentVelocity > 0){
-    //           userModel.positionUpdateCount = 0;
-    //           _fetchUpdateLatLng(userModel.token!, position.latitude, position.longitude);
-    //         }
-    //       }
-    //
-    //       userModel.lastUpdateLocationTime = DateTime.now();
-    //       userModel.positionUpdateCount ++;
-    //
-    //       userModel.currentPosition = position;
-    //
-    //
-    //       if(taskModel.isOnTask){
-    //         // current velocity
-    //         if(taskModel.routePositions.isNotEmpty && taskModel.lastRecordTime!=null){
-    //           DateTime nowTime = DateTime.now();
-    //           DateTime lastTime = taskModel.lastRecordTime!;
-    //           Duration diff = nowTime.difference(lastTime);
-    //           try{
-    //             taskModel.currentVelocity = calculateSpeed(userModel.currentPosition!, taskModel.routePositions.last, diff.inSeconds);
-    //           }catch(e){
-    //             print(e);
-    //           }
-    //         }
-    //
-    //         //total distance
-    //         taskModel.routePositions.add(position);
-    //         int listLength = taskModel.routePositions.length;
-    //         if(listLength >= 2){
-    //           taskModel.totalDistance = taskModel.totalDistance + calculateDistance(taskModel.routePositions[listLength-1].latitude, taskModel.routePositions[listLength-1].longitude, taskModel.routePositions[listLength-2].latitude, taskModel.routePositions[listLength-2].longitude);
-    //         }
-    //
-    //         taskModel.lastRecordTime = DateTime.now();
-    //       }
-    //     }else{
-    //       print('Unknown position');
-    //     }
-    //   });
-    // }
-
-
     return WillPopScope(
         onWillPop: () async => false,
         child: Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        // actions: [
-        //   Padding(
-        //     padding: const EdgeInsets.fromLTRB(0,10,10,10),
-        //     child: IconButton(
-        //         onPressed: (){},
-        //         icon: const Icon(Icons.notifications_outlined)),)],
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              decoration: const BoxDecoration(
-                image: DecorationImage(
-                    image:AssetImage('images/logo.png',),
-                    fit:BoxFit.scaleDown),),
-              height: 25,
-              width: 40,
-            ),
-            // Icon(FontAwesomeIcons.taxi),
-            const SizedBox(width: 10,),
-            const Text('24h派車'),
-          ],
-        ),
-        bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(105.0),
-            child: Container(
-              height: 105,
-              decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border(
-                    bottom: BorderSide(width: 1.0, color: Colors.grey.shade300),
-                  )
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                decoration: const BoxDecoration(
+                  image: DecorationImage(
+                      image:AssetImage('images/logo.png',),
+                      fit:BoxFit.scaleDown),),
+                height: 25,
+                width: 40,
               ),
-              child: Consumer<UserModel>(builder: (context, userModel, child) =>
-                  Column(
-                    children: [
-                      const SizedBox(height: 10,),
-                      userModel.isOnline? statusOnlineButton() : statusOfflineButton(),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text('我的狀態：'),
-                          userModel.isOnline? const Text('上線中') : const Text('休息中'),
-                          const SizedBox(width: 10,),
-                          const Text('目前餘額：'),
-                          Text(userModel.user!.leftMoney.toString()),
-                        ],
-                      ),
-                    ],
-                  ),
-              ),
-            )
+              // Icon(FontAwesomeIcons.taxi),
+              const SizedBox(width: 10,),
+              const Text('24h派車'),
+            ],
+          ),
+          bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(130.0),
+              child: Container(
+                height: 130,
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border(
+                      bottom: BorderSide(width: 1.0, color: Colors.grey.shade300),
+                    )
+                ),
+                child: Consumer<UserModel>(builder: (context, userModel, child) =>
+                    Column(
+                      children: [
+                        const SizedBox(height: 10,),
+                        userModel.isOnline? statusOnlineButton() : statusOfflineButton(),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('我的狀態：'),
+                            userModel.isOnline? const Text('上線中') : const Text('休息中'),
+                            const SizedBox(width: 10,),
+                            const Text('目前餘額：'),
+                            Text(userModel.user!.leftMoney.toString()),
+                          ],
+                        ),
+                        (userModel.user!.violation_time!<5)?
+                        Text('違規次數：${userModel.user!.violation_time!}',style: TextStyle(color: Colors.redAccent),)
+                        :
+                        Text('處罰：${DateFormat('yyyy/MM/dd HH:mm').format(userModel.user!.penalty_datetime!.add(Duration(hours: 8)))} 後可上線',style: TextStyle(color: Colors.redAccent),)
+                      ],
+                    ),
+                ),
+              )
+          ),
         ),
-      ),
-      body: Consumer<UserModel>(builder: (context, userModel, child) =>
-      userModel.isOnline? checkIsTasks() : offlineScene(),
-      ),
-    )
+        body: Consumer<UserModel>(builder: (context, userModel, child) =>
+        userModel.isOnline? checkIsTasks() : offlineScene(),
+        ),
+      )
     );
   }
 
@@ -252,26 +252,17 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // _checkLocationPermission() async {
-  //   LocationPermission permission = await Geolocator.requestPermission();
-  //   print(permission);
-  // }
-
   void actionOffline(){
     var userModel = context.read<UserModel>();
     userModel.resetPositionParams();
-    // if(userModel.positionStreamSubscription!=null){
-    //   print("not null positionStreamSubscription");
-    //   userModel.positionStreamSubscription!.pause();
-    //   userModel.positionStreamSubscription!.cancel();
-    //   userModel.positionStreamSubscription = null;
-    // }
 
     if(_timer!=null){
       print('cancel timer');
       _timer!.cancel();
       _timer = null;
     }
+
+    bg.BackgroundGeolocation.stop();
 
     _putUpdateOnlineState(userModel.token!, false);
   }
@@ -289,8 +280,6 @@ class _HomePageState extends State<HomePage> {
             ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('上線中~~')));
 
             var userModel = context.read<UserModel>();
-            var taskModel = context.read<TaskModel>();
-            //make sure update location when online
 
             if(userModel.user!.isPassed!) {
               final result = await _putUpdateOnlineState(userModel.token!, true);
@@ -301,72 +290,11 @@ class _HomePageState extends State<HomePage> {
                   // print('Hello world, timer: $timer.tick');
                   _fetchCases(userModel.token!);
                 });
-                // Position onlinePosition = await _getCurrentPosition();
-                // userModel.currentPosition = onlinePosition;
-                //
-                // print('onlinePosition ${onlinePosition}');
-                // _fetchUpdateLatLng(userModel.token!, onlinePosition.latitude, onlinePosition.longitude);
-
-                // userModel.positionStreamSubscription =  Geolocator.getPositionStream(locationSettings: locationSettings).listen((Position? position) {
-                //   if(position!=null){
-                //     print('${position.latitude.toString()}, ${position.longitude.toString()}');
-                //
-                //     if(userModel.lastUpdateLocationTime !=null && userModel.currentPosition != null){
-                //       DateTime nowTime = DateTime.now();
-                //       DateTime lastTime = userModel.lastUpdateLocationTime!;
-                //       Duration diff = nowTime.difference(lastTime);
-                //       double currentVelocity = calculateSpeed(userModel.currentPosition!, position, diff.inSeconds);
-                //
-                //       if(currentVelocity.isNaN){
-                //         userModel.positionUpdateCount = 0;
-                //         _fetchUpdateLatLng(userModel.token!, position.latitude, position.longitude);
-                //       }else if(currentVelocity >= 30 && userModel.positionUpdateCount >= 6){
-                //         userModel.positionUpdateCount = 0;
-                //         _fetchUpdateLatLng(userModel.token!, position.latitude, position.longitude);
-                //       }else if(currentVelocity < 30 && currentVelocity >= 15 && userModel.positionUpdateCount >= 3){
-                //         userModel.positionUpdateCount = 0;
-                //         _fetchUpdateLatLng(userModel.token!, position.latitude, position.longitude);
-                //       }else if(currentVelocity < 15 && currentVelocity >= 5 && userModel.positionUpdateCount >= 2){
-                //         userModel.positionUpdateCount = 0;
-                //         _fetchUpdateLatLng(userModel.token!, position.latitude, position.longitude);
-                //       }else if(currentVelocity < 5 && currentVelocity > 0){
-                //         userModel.positionUpdateCount = 0;
-                //         _fetchUpdateLatLng(userModel.token!, position.latitude, position.longitude);
-                //       }
-                //     }
-                //
-                //     userModel.lastUpdateLocationTime = DateTime.now();
-                //     userModel.positionUpdateCount ++;
-                //
-                //     userModel.currentPosition = position;
-                //
-                //
-                //     if(taskModel.isOnTask){
-                //       // current velocity
-                //       if(taskModel.routePositions.isNotEmpty && taskModel.lastRecordTime!=null){
-                //         DateTime nowTime = DateTime.now();
-                //         DateTime lastTime = taskModel.lastRecordTime!;
-                //         Duration diff = nowTime.difference(lastTime);
-                //         try{
-                //           taskModel.currentVelocity = calculateSpeed(userModel.currentPosition!, taskModel.routePositions.last, diff.inSeconds);
-                //         }catch(e){
-                //           print(e);
-                //         }
-                //       }
-                //
-                //       //total distance
-                //       taskModel.routePositions.add(position);
-                //       int listLength = taskModel.routePositions.length;
-                //       if(listLength >= 2){
-                //         taskModel.totalDistance = taskModel.totalDistance + calculateDistance(taskModel.routePositions[listLength-1].latitude, taskModel.routePositions[listLength-1].longitude, taskModel.routePositions[listLength-2].latitude, taskModel.routePositions[listLength-2].longitude);
-                //       }
-                //
-                //       taskModel.lastRecordTime = DateTime.now();
-                //     }
-                //   }else{
-                //     print('Unknown position');
-                //   }
-                // });
+                bg.BackgroundGeolocation.start();
+                _getCurrentPosition();
+              }else{
+                // print('in penalty or no money');
+                ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('處罰中 或 需充值~無法上線~')));
               }
             }else{
               ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('未通過審核！')));
@@ -375,22 +303,6 @@ class _HomePageState extends State<HomePage> {
           }
         },
     );
-  }
-
-  double calculateSpeed(Position currentPosition, Position lastPosition, int durationSeconds){
-    double distance = calculateDistance(currentPosition.latitude, currentPosition.longitude, lastPosition.latitude, lastPosition.longitude);
-    double speed = distance * 1000 / durationSeconds;
-    return speed;
-  }
-
-  //it will return distance in KM
-  static double calculateDistance(lat1, lon1, lat2, lon2){
-    var p = 0.017453292519943295;
-    var c = cos;
-    var a = 0.5 - c((lat2 - lat1) * p)/2 +
-        c(lat1 * p) * c(lat2 * p) *
-            (1 - c((lon2 - lon1) * p))/2;
-    return 12742 * asin(sqrt(a));
   }
 
   checkIsTasks(){
@@ -456,15 +368,16 @@ class _HomePageState extends State<HomePage> {
                         ),
                         child: const Text('客戶',style: TextStyle(color: AppColor.primary),),
                       ),
-                      if(currentPosition!=null)Text('距離 ${getDistance(myCases[i], currentPosition)}'),
+                      if(currentPosition!=null)Text('距離 ${_getDistance(myCases[i], currentPosition)}'),
                     ],),
                     Text('預計行車時間：${_getExpectTimeString(myCases[i].expectSecond! + 120)}'),
                     Text('上車地：${myCases[i].onAddress}'),
-                    (myCases[i].offAddress!="")?Text('下車地：${myCases[i].offAddress}'):Container(),
+                    // (myCases[i].offAddress!="")?Text('下車地：${myCases[i].offAddress}'):Container(),
                     (myCases[i].timeMemo!="")?Text('時間：${myCases[i].timeMemo}'):Container(),
                     (myCases[i].memo!="")?Text('備註：${myCases[i].memo}'):Container(),
                     const SizedBox(height: 10,),
                     CustomElevatedButton(
+                      theHeight: 46,
                         onPressed: (){
                           var userModel = context.read<UserModel>();
                           _putCaseConfirm(userModel.token!, myCases[i]);
@@ -473,14 +386,15 @@ class _HomePageState extends State<HomePage> {
                         },
                         title: '接單'),
                     CustomElevatedButton(
-                        onPressed: (){
-                          var userModel = context.read<UserModel>();
-                          _putCaseRefuse(userModel.token!, myCases[i]);
-                          myCases.removeAt(i);
-                          isRefusing = true;
-                        },
-                        title: '拒絕',
-                        color: AppColor.red)
+                      theHeight: 46,
+                      onPressed: (){
+                        var userModel = context.read<UserModel>();
+                        _putCaseRefuse(userModel.token!, myCases[i]);
+                        myCases.removeAt(i);
+                        isRefusing = true;
+                      },
+                      title: '拒絕',
+                      color: AppColor.red)
                   ],),);
             });
   }
@@ -495,7 +409,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  String getDistance(Case theCase, Position currentPosition){
+  String _getDistance(Case theCase, Position currentPosition){
     double distance = Geolocator.distanceBetween(currentPosition.latitude, currentPosition.longitude, double.parse(theCase.onLat!), double.parse(theCase.onLng!));
     if(distance > 1000){
       distance = distance / 1000;
@@ -530,6 +444,13 @@ class _HomePageState extends State<HomePage> {
     //At the next line, DO NOT pass the entire reference such as assets/yes.mp3. This will not work.
     //Just pass the file name only.
     return await cache.play("ding_dong.mp3");
+  }
+
+  Future<AudioPlayer> _playCancelAsset() async {
+    AudioCache cache = AudioCache();
+    //At the next line, DO NOT pass the entire reference such as assets/yes.mp3. This will not work.
+    //Just pass the file name only.
+    return await cache.play("cancel_2.mp3");
   }
 
   Future<bool> _handlePermission() async {
@@ -626,7 +547,7 @@ class _HomePageState extends State<HomePage> {
     return true;
   }
 
-  Future<Position> _getCurrentPosition() async {
+  Future<void> _getCurrentPosition() async {
     final hasPermission = await _handlePermission();
 
     if (!hasPermission) {
@@ -635,17 +556,11 @@ class _HomePageState extends State<HomePage> {
 
     print('getting position');
     final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
-    print(position);
-
-    List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude, localeIdentifier: 'zh-TW');
-    if(placemarks.isNotEmpty){
-      String output = placemarks[0].subAdministrativeArea.toString() + placemarks[0].locality.toString() + placemarks[0].street.toString();
-      print(output);
-    }else{
-      print('empty place mark');
+    var userModel = context.read<UserModel>();
+    if(userModel.isOnline){
+      userModel.currentPosition = position;
+      _fetchUpdateLatLng(userModel.token!, userModel.currentPosition!.latitude, userModel.currentPosition!.longitude);
     }
-
-    return position;
 
   }
 
@@ -695,44 +610,139 @@ class _HomePageState extends State<HomePage> {
 
       var userModel = context.read<UserModel>();
       userModel.user!.leftMoney = map["left_money"];
+      userModel.user!.violation_time = map["violation_time"];
+      if (map["penalty_datetime"] != null){
+        userModel.user!.penalty_datetime = DateTime.parse(map["penalty_datetime"]);
+        // print('_penalty_datetime ${userModel.user!.penalty_datetime}');
+      }else{
+        userModel.user!.penalty_datetime = null;
+      }
 
       // 如果 left money < -100, 自動下線
-      if(map["left_money"]<= -100){
+      if(map["left_money"]<= -100 || userModel.user!.violation_time == 5){
         actionOffline();
       }else{
         List<Case> cases = body.map((value) => Case.fromJson(value)).toList();
-        if(myCases.isEmpty && cases.isNotEmpty){
-          if(!isRefusing){
-            _playLocalAsset();
-          }
-        }
+        if(cases.isNotEmpty && cases.first.caseState!='dispatching'){
+          // 這邊要跳頁,並解除 timer (這邊跟 putConfirm 很像, code 沒有整理)
+          print('need push to CurrentTask');
 
-        // 如果拒絕中, 跳過更新一次！
-        if(!isRefusing) {
-          myCases = cases;
+          var taskModel = context.read<TaskModel>();
+          taskModel.cases.clear();
+          taskModel.cases.add(cases.first);
+          if(cases.first.caseState=='way_to_catch'){
+            if(!isCaseConfirming) {
+              print('hererererererererer');
+              pushToCurrentTask(cases.first);
+            }
+          }else{
+            pushToOnTask(cases.first);
+          }
+
         }else{
-          isRefusing = false;
+          if(myCases.isEmpty && cases.isNotEmpty){
+            if(!isRefusing){
+              _playLocalAsset();
+            }
+          }
+
+          // 如果拒絕中, 跳過更新一次！
+          if(!isRefusing) {
+            myCases = cases;
+          }else{
+            isRefusing = false;
+          }
+
+          print('_taskTimer $_taskTimer');
+
+          if(myCases.isNotEmpty && _taskTimer==null){
+            print('start timer');
+            // int currentTime = myCases.first.countdownSecond!;
+            // if(currentTime==18){
+            //   currentTime = 17;
+            // }
+            _startTaskTimer();
+          }
         }
 
-        if(myCases.isNotEmpty && _taskTimer==null){
-          int currentTime = myCases.first.countdownSecond!;
-          if(currentTime==18){
-            currentTime = 17;
-          }
-          _startTaskTimer(currentTime);
-        }
       }
 
-      setState(() {});
+      if(myCases.isEmpty) {
+        setState(() {});
+      }
 
     } catch (e) {
       print(e);
     }
   }
 
+  pushToCurrentTask(Case theCase) async {
+    if(_timer!=null){
+      print('cancel timer');
+      _timer!.cancel();
+      _timer = null;
+    }
+    await Navigator.push(context, MaterialPageRoute(builder: (context) =>  CurrentTask(theCase: theCase)));
+    var taskModel = context.read<TaskModel>();
+
+    if(taskModel.isCanceled == true){
+      myCases.clear();
+      showDialog<String>(
+          barrierDismissible: false,
+          context: context,
+          builder: (BuildContext context) {
+            return const CancelDialog();
+          });
+    }
+
+    setState(() {
+      myCases.clear();
+    });
+
+    var userModel = context.read<UserModel>();
+    if (userModel.isOnline && _timer == null){
+      print('start timer');
+      _timer = Timer.periodic(Duration(seconds: timerPeriod), (timer) {
+        _fetchCases(userModel.token!);
+      });
+    }
+  }
+
+  pushToOnTask(Case theCase) async {
+    if(_timer!=null){
+      print('cancel timer');
+      _timer!.cancel();
+      _timer = null;
+    }
+    await Navigator.push(context, MaterialPageRoute(builder: (context) => OnTask(theCase: theCase)));
+    var taskModel = context.read<TaskModel>();
+    if(taskModel.isCanceled==true){
+      myCases.clear();
+      _playCancelAsset();
+      showDialog<String>(
+          barrierDismissible: false,
+          context: context,
+          builder: (BuildContext context) {
+            return const CancelDialog();
+          });
+    }
+
+    setState(() {
+      myCases.clear();
+    });
+
+    var userModel = context.read<UserModel>();
+    if (userModel.isOnline && _timer == null){
+      print('start timer');
+      _timer = Timer.periodic(Duration(seconds: timerPeriod), (timer) {
+        _fetchCases(userModel.token!);
+      });
+    }
+  }
+
   Future _putCaseConfirm(String token, Case theCase) async {
     print("case confirm");
-
+    isCaseConfirming = true;
     String path = ServerApi.PATH_CASE_CONFIREM;
 
     try {
@@ -765,11 +775,17 @@ class _HomePageState extends State<HomePage> {
         }
 
         var taskModel = context.read<TaskModel>();
+        theCase.caseState='way_to_catch';
+        taskModel.cases.clear();
         taskModel.cases.add(theCase);
-        final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const CurrentTask()));
+
+        final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => CurrentTask(theCase: theCase)));
+        isCaseConfirming = false;
 
         print(result);
-        if(result=='canceled'){
+        if(taskModel.isCanceled == true){
+          myCases.clear();
+          _playCancelAsset();
           showDialog<String>(
               barrierDismissible: false,
               context: context,
@@ -777,6 +793,10 @@ class _HomePageState extends State<HomePage> {
                 return const CancelDialog();
               });
         }
+
+        setState(() {
+          myCases.clear();
+        });
 
         var userModel = context.read<UserModel>();
         if (userModel.isOnline && _timer == null){
@@ -786,6 +806,7 @@ class _HomePageState extends State<HomePage> {
           });
         }
       }else{
+        isCaseConfirming = false;
         if(_taskTimer!=null) {
           print('cancel task timer');
           _taskTimer!.cancel();
@@ -797,6 +818,7 @@ class _HomePageState extends State<HomePage> {
       setState(() {});
     } catch (e) {
       print(e);
+      isCaseConfirming = false;
       if(_taskTimer!=null) {
         print('cancel task timer');
         _taskTimer!.cancel();
@@ -872,6 +894,11 @@ class _HomePageState extends State<HomePage> {
       if(map['message']=='ok'){
         print("success update online state!");
         if(isOnline){
+          // save to prefs
+          print('set isOnline true to prefs');
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('isOnline', true);
+
           ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('已上線！')));
           var userModel = context.read<UserModel>();
           setState(() {
@@ -879,6 +906,11 @@ class _HomePageState extends State<HomePage> {
           });
           return "ok";
         }else{
+          // save to prefs
+          print('set isOnline false to prefs');
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('isOnline', false);
+
           ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('已下線！')));
           var userModel = context.read<UserModel>();
           setState(() {
@@ -935,6 +967,10 @@ class _HomePageState extends State<HomePage> {
     String path = ServerApi.PATH_REGISTER_DEVICE;
     var userModel = context.read<UserModel>();
 
+    if(userModel.fcmToken==null){
+      await Future.delayed(const Duration(seconds: 5));
+    }
+
     try {
       Map queryParameters = {
         'registration_id': userModel.fcmToken,
@@ -942,21 +978,22 @@ class _HomePageState extends State<HomePage> {
         'type': userModel.platformType,
       };
 
+      print('here to post fcm');
       print(userModel.fcmToken);
       print(userModel.deviceId);
       print(userModel.platformType);
       print(userModel.token);
 
-      final response = await http.post(ServerApi.standard(path: path),
-        headers: <String, String>{
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Authorization': 'Token ${userModel.token!}',
-        },
-        body: jsonEncode(queryParameters),
-      );
-
-      print(response.body);
-
+      if(userModel.fcmToken!=null) {
+        final response = await http.post(ServerApi.standard(path: path),
+          headers: <String, String>{
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Authorization': 'Token ${userModel.token!}',
+          },
+          body: jsonEncode(queryParameters),
+        );
+        print(response.body);
+      }
     }catch(e){
       print(e);
     }
