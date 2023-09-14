@@ -635,6 +635,8 @@ class _HomePageState extends State<HomePage> {
               print('hererererererererer');
               pushToCurrentTask(cases.first);
             }
+          }else if(cases.first.caseState=='canceled' || cases.first.caseState=='finished'){
+            print('case state canceled or finished');
           }else{
             pushToOnTask(cases.first);
           }

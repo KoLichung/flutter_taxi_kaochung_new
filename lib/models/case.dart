@@ -1,3 +1,5 @@
+import 'dart:ffi';
+
 class Case {
   int? id;
   String? caseState;
@@ -27,6 +29,11 @@ class Case {
   String? timeMemo;
   String? carTeamName;
 
+  String? feeTitle;
+  int? feeStartFee;
+  double? feeFifteenSecondFee;
+  double? feeTwoHundredMeterFee;
+
   Case(
       {this.id,
         this.caseState,
@@ -53,6 +60,10 @@ class Case {
         this.memo,
         this.timeMemo,
         this.carTeamName,
+        this.feeTitle,
+        this.feeStartFee,
+        this.feeFifteenSecondFee,
+        this.feeTwoHundredMeterFee,
       });
 
   Case.fromJson(Map<String, dynamic> json) {
@@ -113,6 +124,10 @@ class Case {
     }else{
       carTeamName = "";
     }
+    feeTitle = json['fee_title'];
+    feeStartFee = json['fee_start_fee'];
+    feeFifteenSecondFee = json['fee_fifteen_second_fee'];
+    feeTwoHundredMeterFee = json['fee_two_hundred_meter_fee'];
   }
 
   Map<String, dynamic> toJson() {
