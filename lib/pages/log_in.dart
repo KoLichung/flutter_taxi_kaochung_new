@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_line_sdk/flutter_line_sdk.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_taxi_chinghsien/notifier_models/task_model.dart';
 import 'package:flutter_taxi_chinghsien/pages/register.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/home_page.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/new_passenger_dialog.dart';
@@ -71,7 +72,12 @@ class _LogInState extends State<LogIn> {
       print("message recieved");
       print(event.notification!.body);
       // _showNotification();
-      _playLocalAsset();
+
+      var taskModel = context.read<TaskModel>();
+      if(taskModel.cases.isEmpty){
+        _playLocalAsset();
+      }
+
       // showDialog(context: context, builder: (_) {
       //   return NewPassengerDialog();
       // });

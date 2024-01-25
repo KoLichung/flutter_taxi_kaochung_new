@@ -7,7 +7,8 @@ class ServerApi{
   static const PATH_USER_DATA = '/api/user/me/';
   static const PATH_DELETE_USER = '/api/user/deleteuser/';
   static const PATH_USER_LEFT_MONEY = '/api/user/left_money/';
-  static const PATH_REGISTER_DEVICE = "/fcm/device_register";
+  static const PATH_REGISTER_DEVICE = '/fcm/device_register';
+  static const PATH_UPDATE_FEE_RULE = '/api/user/update_fee_rule/';
 
   static const PATH_UPDATE_ONLINE_STATE = '/api/update_user_online_state';
   static const PATH_STORE_MONEYS = '/api/user_store_moneys/';
@@ -15,6 +16,7 @@ class ServerApi{
   static const PATH_UPDATE_LAT_LNG = '/api/update_lat_lng';
   static const PATH_GET_CASES = '/api/get_cases/';
   static const PATH_GET_CASE_DETAIL = '/api/case_detail';
+  static const PATH_GET_FEE_RULES = '/api/fee_rules/';
 
   static const PATH_CASE_CONFIREM = '/api/case_confirm';
   static const PATH_CASE_ARRIVE = '/api/case_arrived';
@@ -23,6 +25,7 @@ class ServerApi{
   static const PATH_CASE_CANCEL = '/api/case_canceled';
   static const PATH_CASE_NOTIFY_CUSTOMER = '/api/case_notify_customer';
   static const PATH_CASE_REFUSE = '/api/case_refuse';
+  static const PATH_OPEN_CASES = '/api/open_cases/';
 
   static const PATH_CAR_TEAMS = '/api/car_teams';
 

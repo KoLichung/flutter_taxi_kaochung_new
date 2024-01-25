@@ -1,9 +1,6 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:developer';
 import 'dart:ui';
 
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -12,10 +9,16 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_taxi_chinghsien/pages/log_in.dart';
 import 'package:flutter_taxi_chinghsien/pages/member/money_record.dart';
 import 'package:flutter_taxi_chinghsien/pages/member/my_account_page.dart';
+import 'package:flutter_taxi_chinghsien/pages/task/disclosure_dialog.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/home_page.dart';
+import 'package:flutter_taxi_chinghsien/pages/task/open_case_page.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
+import 'package:http/http.dart' as http;
 
 import 'color.dart';
+import 'config/serverApi.dart';
 import 'firebase_options.dart';
 import 'notifier_models/task_model.dart';
 import 'notifier_models/user_model.dart';
@@ -251,6 +254,58 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     // TODO: implement initState
     super.initState();
+
+    bg.BackgroundGeolocation.onLocation((bg.Location location) {
+      print('[location] - $location');
+
+      var userModel = context.read<UserModel>();
+      userModel.currentPosition = Position(longitude: location.coords.longitude, latitude: location.coords.latitude, timestamp: DateTime.now(), accuracy: location.coords.accuracy, altitude: location.coords.altitude, heading: location.coords.heading, speed: location.coords.speed, speedAccuracy: location.coords.accuracy);
+
+
+      if(userModel.isOnline){
+        _fetchUpdateLatLng(userModel.token!, userModel.currentPosition!.latitude, userModel.currentPosition!.longitude);
+      }
+
+      var taskModel = context.read<TaskModel>();
+      if(taskModel.isOnTask){
+        taskModel.totalDistance = location.odometer/1000.0;
+      }
+    });
+
+    bg.BackgroundGeolocation.ready(bg.Config(
+        desiredAccuracy: bg.Config.DESIRED_ACCURACY_HIGH,
+        distanceFilter: 10.0,
+        stopOnTerminate: true,
+        startOnBoot: true,
+        debug: false,
+        stationaryRadius: 25,
+        logLevel: bg.Config.LOG_LEVEL_VERBOSE,
+        //add 2023/06/24 for ios
+        preventSuspend: true,
+        heartbeatInterval: 60,
+        // ===
+        backgroundPermissionRationale: bg.PermissionRationale(
+            title: "允許 {applicationName} 在背景程式使用位置資訊？",
+            message: "為了取得位置並提供您案件資訊，請允許在背景使用您的位置。",
+            positiveAction: "允許",
+            negativeAction: "取消"
+        )
+    )).then((bg.State state) async {
+      if (!state.enabled) {
+        var userModel = context.read<UserModel>();
+        if(userModel.platformType=='android') {
+          await showDialog<String>(
+              context: context,
+              builder: (BuildContext context) {
+                return const DisclosureDialog();}
+          );
+          bg.BackgroundGeolocation.start();
+        }else{
+          bg.BackgroundGeolocation.start();
+        }
+      }
+    });
+
   }
 
   @override
@@ -270,9 +325,21 @@ class _MyHomePageState extends State<MyHomePage> {
           currentIndex: _selectedIndex,
           // onTap: _onItemTapped,
           onTap: (int index) {
-            setState(() {
-              _selectedIndex = index;
-            });
+            // if(index == 1){
+            //   Navigator.of(context).push(
+            //     MaterialPageRoute(builder: (context) => const OpenCasePage()),
+            //   );
+            // }else {
+              setState(() {
+                var userModel = context.read<UserModel>();
+                if (index == 1 && userModel.isOnline == false){
+                  _selectedIndex = 0;
+                  ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('先上線才能到未結案區！')));
+                }else {
+                  _selectedIndex = index;
+                }
+              });
+            // }
           },
           items: <BottomNavigationBarItem>[
             BottomNavigationBarItem(
@@ -280,18 +347,52 @@ class _MyHomePageState extends State<MyHomePage> {
                 icon: Image.asset('images/24h_tab_icon.png',height: 25,width: 40,),
                 activeIcon:Image.asset('images/24h_tab_icon_selected.png',height: 25,width: 40,),
                 label: "派車首頁"),
-            // BottomNavigationBarItem(icon: Icon(FontAwesomeIcons.taxi), label: '派車首頁'),
+            const BottomNavigationBarItem(icon: Icon(Icons.content_paste), label: '未結案區'),
             const BottomNavigationBarItem(icon: Icon(Icons.person_outlined), label: '會員中心'),
           ],
         ),
       ),
     );
   }
+
   pageCaller(int index){
     switch (index){
       case 0 : { return const HomePage();}
-      case 1 : { return const MyAccountPage();}
+      case 1: {
+        var userModel = context.read<UserModel>();
+        if(userModel.isOnline) {
+          return const OpenCasePage();
+        }else{
+          return const HomePage();
+        }
+      }
+      case 2 : { return const MyAccountPage();}
     }
+  }
 
+  Future _fetchUpdateLatLng(String token, double lat, double lng) async {
+    String path = ServerApi.PATH_UPDATE_LAT_LNG;
+    final queryParameters = {
+      'lat': lat.toString(),
+      'lng': lng.toString(),
+    };
+
+    try {
+      final response = await http.get(
+        ServerApi.standard(path: path, queryParameters: queryParameters),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': 'token $token'
+        },
+      );
+
+      print(response.body);
+
+      // List body = json.decode(utf8.decode(response.body.runes.toList()));
+      // print(body);
+
+    } catch (e) {
+      print(e);
+    }
   }
 }

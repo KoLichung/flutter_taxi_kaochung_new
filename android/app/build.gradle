@@ -44,11 +44,11 @@ android {
         applicationId "com.chijia.flutter_taxi_chinghsien"
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-build-configuration.
-        minSdkVersion 21
+        minSdkVersion 24
 //        targetSdkVersion flutter.targetSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 39
-        versionName '1.0.38'
+        targetSdkVersion 33
+        versionCode 52
+        versionName '1.0.51'
     }
 
     buildTypes {

@@ -25,8 +25,9 @@ import 'package:map_launcher/map_launcher.dart';
 class CurrentTask extends StatefulWidget {
 
   final Case theCase;
+  final bool isOpenCase;
 
-  const CurrentTask({Key? key,required this.theCase}) : super(key: key);
+  const CurrentTask({Key? key,required this.theCase, required this.isOpenCase}) : super(key: key);
 
   @override
   _CurrentTaskState createState() => _CurrentTaskState();
@@ -58,29 +59,22 @@ class _CurrentTaskState extends State<CurrentTask> {
     var userModel = context.read<UserModel>();
     userToken = userModel.token!;
 
-    // var taskModel = context.read<TaskModel>();
+    initExpectedSeconds = widget.theCase.expectSecond! + 120;
+    remainSeconds = initExpectedSeconds;
+    startTime ??= DateTime.now();
 
-    //check case state
-    // if(taskModel.cases.first.caseState!='way_to_catch'){
-    //   Navigator.push(context, MaterialPageRoute(builder: (context) => OnTask(theCase: taskModel.cases.first)));
-    // }else{
-      initExpectedSeconds = widget.theCase.expectSecond! + 120;
-      remainSeconds = initExpectedSeconds;
-      startTime ??= DateTime.now();
+    _remainTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
+      if(startTime!=null){
+        DateTime currentTime = DateTime.now();
+        int diffSecondsTotal = currentTime.difference(startTime!).inSeconds;
+        remainSeconds = initExpectedSeconds -  diffSecondsTotal;
+      }
+      setState(() {});
+    });
 
-      _remainTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
-        if(startTime!=null){
-          DateTime currentTime = DateTime.now();
-          int diffSecondsTotal = currentTime.difference(startTime!).inSeconds;
-          remainSeconds = initExpectedSeconds -  diffSecondsTotal;
-        }
-        setState(() {});
-      });
-
-      _fetchTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-        _fetchCaseState(userToken!, widget.theCase.id!);
-      });
-    // }
+    _fetchTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      _fetchCaseState(userToken!, widget.theCase.id!);
+    });
   }
 
 
@@ -186,7 +180,7 @@ class _CurrentTaskState extends State<CurrentTask> {
                                       // MapsLauncher.launchQuery(taskModel.cases.first.onAddress!);
                                     }),
                                 const SizedBox(width: 5,),
-                                CustomSmallElevatedButton(
+                                (widget.isOpenCase == false)?CustomSmallElevatedButton(
                                     icon: const Icon(Icons.directions,size: 16,),
                                     title: '導航',
                                     color: isAddressCopied? Colors.grey : AppColor.primary,
@@ -219,7 +213,7 @@ class _CurrentTaskState extends State<CurrentTask> {
                                         print(e);
                                       }
                                       MapsLauncher.launchQuery(taskModel.cases.first.onAddress!);
-                                    })
+                                    }):Container()
                               ],
                             ),
                           ),
@@ -336,7 +330,6 @@ class _CurrentTaskState extends State<CurrentTask> {
           _fetchTimer = null;
         }
         var taskModel = context.read<TaskModel>();
-        // taskModel.isOnTask = true;
         taskModel.cases.first.caseState = 'arrived';
         final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => OnTask(theCase: taskModel.cases.first)));
         if(result == 'canceled'){
@@ -382,6 +375,7 @@ class _CurrentTaskState extends State<CurrentTask> {
         taskModel.isCanceled = true;
         taskModel.resetTask();
         //回到首頁並帶參數
+        print("pop to main");
         Navigator.popUntil(context, ModalRoute.withName('/main'));
       }
 
@@ -412,113 +406,6 @@ class _CurrentTaskState extends State<CurrentTask> {
       }
     }
   }
-
-  // Future _putCaseCanceled(String token, String memo, int caseId) async {
-  //   String path = ServerApi.PATH_CASE_CANCEL;
-  //
-  //   try {
-  //     final bodyParams = {
-  //       'memo': memo,
-  //     };
-  //
-  //     final queryParameters = {
-  //       'case_id': caseId.toString(),
-  //     };
-  //
-  //     final response = await http.put(
-  //       ServerApi.standard(path: path, queryParameters: queryParameters),
-  //       headers: <String, String>{
-  //         'Content-Type': 'application/json; charset=UTF-8',
-  //         'Authorization': 'Token $token',
-  //       },
-  //       body: jsonEncode(bodyParams)
-  //     );
-  //
-  //     Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
-  //     if(map['message']=='ok'){
-  //       var taskModel = context.read<TaskModel>();
-  //       taskModel.resetTask();
-  //       if(taskModel.cases.isEmpty) {
-  //         Navigator.popUntil(context, ModalRoute.withName('/main'));
-  //       }else{
-  //         setState(() {});
-  //       }
-  //     }else{
-  //       ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('可能網路不佳，請再試一次！')));
-  //     }
-  //
-  //   } catch (e) {
-  //     print(e);
-  //     return "error";
-  //   }
-  // }
-  //
-  // void _launchMap(String address) async {
-  //   String query = Uri.encodeComponent(address);
-  //   String googleUrl = "https://www.google.com/maps/search/?api=1&query=$query";
-  //   Uri googleUri = Uri.parse(googleUrl);
-  //
-  //   if (await canLaunchUrl(googleUri)) {
-  //     await launchUrl(googleUri);
-  //   }
-  // }
-  //
-  // //乘客上車了
-  // Future _putCaseCatched(String token, Case theCase) async {
-  //   String path = ServerApi.PATH_CASE_CATCHED;
-  //
-  //   try {
-  //     // Map queryParameters = {
-  //     //   'phone': user.phone,
-  //     // };
-  //
-  //     final queryParameters = {
-  //       'case_id': theCase.id.toString(),
-  //     };
-  //
-  //     final response = await http.put(
-  //       ServerApi.standard(path: path, queryParameters: queryParameters),
-  //       headers: <String, String>{
-  //         'Content-Type': 'application/json; charset=UTF-8',
-  //         'Authorization': 'Token $token',
-  //       },
-  //       // body: jsonEncode(queryParameters)
-  //     );
-  //
-  //     print(response.body);
-  //
-  //     Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
-  //     if(map['message']=='ok'){
-  //       var taskModel = context.read<TaskModel>();
-  //       taskModel.isOnTask = true;
-  //       Navigator.push(context, MaterialPageRoute(builder: (context) => OnTask(theCase: theCase)));
-  //       setState(() {});
-  //     }else{
-  //       ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('可能網路不佳，請再試一次！')));
-  //     }
-  //
-  //   } catch (e) {
-  //     print(e);
-  //     return "error";
-  //   }
-  // }
-
-  // Future _getLatLngFromAddress(String address) async{
-  //   String geocodingKey = "AIzaSyCrzmspoFyEFYlQyMqhEkt3x5kkY8U3C-Y";
-  //   String path = '${ServerApi.PATH_GEOCODE}$address&key=$geocodingKey';
-  //   print(path);
-  //   try {
-  //     final response = await http.get(Uri.parse(path));
-  //     if (response.statusCode == 200) {
-  //       Map<String, dynamic> data = json.decode(response.body);
-  //       print(data['status']);
-  //       print(data['results'][0]['formatted_address']);
-  //       setState(() {});
-  //     }
-  //   } catch (e) {
-  //     print(e);
-  //   }
-  // }
 
 }
 

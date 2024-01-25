@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_taxi_chinghsien/config/serverApi.dart';
+import 'package:flutter_taxi_chinghsien/pages/member/fee_rule_page.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../color.dart';
@@ -52,12 +53,6 @@ class _MyAccountPageState extends State<MyAccountPage> {
               const Text('24h派車'),
             ],
           ),
-          // actions: [
-          //   Padding(
-          //     padding: const EdgeInsets.fromLTRB(0,10,10,10),
-          //     child: IconButton(
-          //         onPressed: (){},
-          //         icon: const Icon(Icons.notifications_outlined)),)],
         ),
         body: SingleChildScrollView(
           child: Column(
@@ -102,6 +97,12 @@ class _MyAccountPageState extends State<MyAccountPage> {
                   Navigator.pushNamed(context, '/money_record');
                 },
               ),
+              CustomMemberPageButton(
+                title: '費率變更',
+                onPressed: (){
+                  Navigator.push(context, MaterialPageRoute(builder: (context) =>  const FeeRulePage()));
+                },
+              ),
               Container(
                 margin: const EdgeInsets.fromLTRB(30,20,30,0),
                 child: CustomElevatedButton(
@@ -115,12 +116,6 @@ class _MyAccountPageState extends State<MyAccountPage> {
                     userModel.token = null;
                     userModel.removeUser(context);
                     userModel.resetPositionParams();
-                    // if(userModel.positionStreamSubscription!=null){
-                    //   print("not null positionStreamSubscription");
-                    //   userModel.positionStreamSubscription!.pause();
-                    //   userModel.positionStreamSubscription!.cancel();
-                    //   userModel.positionStreamSubscription = null;
-                    // }
                     _deleteUserToken();
                     Navigator.popUntil(context, (Route<dynamic> route) => route.isFirst);
                   },
@@ -157,14 +152,6 @@ class _MyAccountPageState extends State<MyAccountPage> {
         ))
     );
   }
-
-  // Future<void> _lineLogOut() async {
-  //   try {
-  //     await LineSDK.instance.logout();
-  //   } on PlatformException catch (e) {
-  //     print(e.message);
-  //   }
-  // }
 
   Future _putUpdateOnlineState(String token, bool isOnline) async{
     String path = ServerApi.PATH_UPDATE_ONLINE_STATE;
@@ -252,12 +239,6 @@ class _MyAccountPageState extends State<MyAccountPage> {
         var userModel = context.read<UserModel>();
         userModel.removeUser(context);
         userModel.resetPositionParams();
-        // if(userModel.positionStreamSubscription!=null){
-        //   print("not null positionStreamSubscription");
-        //   userModel.positionStreamSubscription!.pause();
-        //   userModel.positionStreamSubscription!.cancel();
-        //   userModel.positionStreamSubscription = null;
-        // }
         bg.BackgroundGeolocation.stop();
 
         Navigator.popUntil(context, (Route<dynamic> route) => route.isFirst);

@@ -7,7 +7,6 @@ import 'package:flutter_taxi_chinghsien/notifier_models/task_model.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/cancel_dialog.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/disclosure_dialog.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
@@ -22,9 +21,10 @@ import 'current_task.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
-
 import 'on_task.dart';
+
+import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
+import 'package:http/http.dart' as http;
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -58,6 +58,8 @@ class _HomePageState extends State<HomePage> {
   void _startTaskTimer() {
     DateTime dispatchTime = myCases.first.dispatchTime!;
     print('dispatch time $dispatchTime');
+    DateTime now = DateTime.now();
+    _taskWaitingTime = 18 - now.difference(dispatchTime).inSeconds;
 
     const oneSec = Duration(seconds: 1);
     _taskTimer = Timer.periodic(oneSec, (Timer timer) {
@@ -97,58 +99,9 @@ class _HomePageState extends State<HomePage> {
       _httpPostFCMDevice();
     }
 
-    bg.BackgroundGeolocation.onLocation((bg.Location location) {
-      print('[location] - $location');
-
-      var userModel = context.read<UserModel>();
-      userModel.currentPosition = Position(longitude: location.coords.longitude, latitude: location.coords.latitude, timestamp: DateTime.now(), accuracy: location.coords.accuracy, altitude: location.coords.altitude, heading: location.coords.heading, speed: location.coords.speed, speedAccuracy: location.coords.accuracy);
-
-
-      if(userModel.isOnline){
-        _fetchUpdateLatLng(userModel.token!, userModel.currentPosition!.latitude, userModel.currentPosition!.longitude);
-      }
-
-      var taskModel = context.read<TaskModel>();
-      if(taskModel.isOnTask){
-        taskModel.totalDistance = location.odometer/1000.0;
-      }
-    });
-
-    bg.BackgroundGeolocation.ready(bg.Config(
-        desiredAccuracy: bg.Config.DESIRED_ACCURACY_HIGH,
-        distanceFilter: 10.0,
-        stopOnTerminate: true,
-        startOnBoot: true,
-        debug: false,
-        stationaryRadius: 25,
-        logLevel: bg.Config.LOG_LEVEL_VERBOSE,
-        //add 2023/06/24 for ios
-        preventSuspend: true,
-        heartbeatInterval: 60,
-        // ===
-        backgroundPermissionRationale: bg.PermissionRationale(
-          title: "允許 {applicationName} 在背景程式使用位置資訊？",
-          message: "為了取得位置並提供您案件資訊，請允許在背景使用您的位置。",
-          positiveAction: "允許",
-          negativeAction: "取消"
-        )
-    )).then((bg.State state) async {
-      if (!state.enabled) {
-        if(userModel.platformType=='android') {
-          await showDialog<String>(
-              context: context,
-              builder: (BuildContext context) {
-                return DisclosureDialog();}
-          );
-          bg.BackgroundGeolocation.start();
-        }else{
-          bg.BackgroundGeolocation.start();
-        }
-      }
-    });
-
     if(userModel.isOnline && userModel.user!.isPassed!){
-        _putUpdateOnlineState(userModel.token!, true);
+        _fetchCases(userModel.token!);
+        _putUpdateOnlineState(userModel.token!, true, false);
         print('start timer');
         _timer = Timer.periodic(Duration(seconds: timerPeriod), (timer) {
           // print('Hello world, timer: $timer.tick');
@@ -264,7 +217,8 @@ class _HomePageState extends State<HomePage> {
 
     bg.BackgroundGeolocation.stop();
 
-    _putUpdateOnlineState(userModel.token!, false);
+    ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('下線中，請勿離開~~')));
+    _putUpdateOnlineState(userModel.token!, false, false);
   }
 
   statusOfflineButton(){
@@ -282,9 +236,10 @@ class _HomePageState extends State<HomePage> {
             var userModel = context.read<UserModel>();
 
             if(userModel.user!.isPassed!) {
-              final result = await _putUpdateOnlineState(userModel.token!, true);
+              final result = await _putUpdateOnlineState(userModel.token!, true, false);
               // result ok 為成功上線
               if(result=="ok"){
+                _fetchCases(userModel.token!);
                 print('start timer');
                 _timer = Timer.periodic(Duration(seconds: timerPeriod), (timer) {
                   // print('Hello world, timer: $timer.tick');
@@ -609,8 +564,16 @@ class _HomePageState extends State<HomePage> {
       List body = map["cases"];
 
       var userModel = context.read<UserModel>();
+      var taskModel = context.read<TaskModel>();
+
       userModel.user!.leftMoney = map["left_money"];
       userModel.user!.violation_time = map["violation_time"];
+
+      taskModel.feeTitle = map['user_fee_title'];
+      taskModel.startFee = map['user_start_fee'];
+      taskModel.fifteenSecondFee = map['user_fifteen_second_fee'];
+      taskModel.twoHundredMeterFee = map['user_two_hundred_meter_fee'];
+
       if (map["penalty_datetime"] != null){
         userModel.user!.penalty_datetime = DateTime.parse(map["penalty_datetime"]);
         // print('_penalty_datetime ${userModel.user!.penalty_datetime}');
@@ -643,7 +606,7 @@ class _HomePageState extends State<HomePage> {
 
         }else{
           if(myCases.isEmpty && cases.isNotEmpty){
-            if(!isRefusing){
+            if(!isRefusing && checkSecond(cases.first) >= 0 ){
               _playLocalAsset();
             }
           }
@@ -684,7 +647,7 @@ class _HomePageState extends State<HomePage> {
       _timer!.cancel();
       _timer = null;
     }
-    await Navigator.push(context, MaterialPageRoute(builder: (context) =>  CurrentTask(theCase: theCase)));
+    await Navigator.push(context, MaterialPageRoute(builder: (context) =>  CurrentTask(theCase: theCase, isOpenCase: false)));
     var taskModel = context.read<TaskModel>();
 
     if(taskModel.isCanceled == true){
@@ -781,7 +744,7 @@ class _HomePageState extends State<HomePage> {
         taskModel.cases.clear();
         taskModel.cases.add(theCase);
 
-        final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => CurrentTask(theCase: theCase)));
+        final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => CurrentTask(theCase: theCase, isOpenCase: false)));
         isCaseConfirming = false;
 
         print(result);
@@ -872,7 +835,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future _putUpdateOnlineState(String token, bool isOnline) async{
+  Future _putUpdateOnlineState(String token, bool isOnline, bool isCheck) async{
     String path = ServerApi.PATH_UPDATE_ONLINE_STATE;
 
     try {
@@ -880,6 +843,10 @@ class _HomePageState extends State<HomePage> {
       Map bodyParameters = {
         'is_online': isOnline.toString(),
       };
+
+      if(isCheck){
+        bodyParameters['check'] = 'check';
+      }
 
       final response = await http.put(
         ServerApi.standard(path: path),
@@ -913,11 +880,19 @@ class _HomePageState extends State<HomePage> {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setBool('isOnline', false);
 
-          ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('已下線！')));
+          if(!isCheck){
+            ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('二次確認下線中，請勿離開！')));
+            sleep(const Duration(seconds: 2));
+            _putUpdateOnlineState(token, false, true);
+          }else{
+            ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('已下線！')));
+          }
           var userModel = context.read<UserModel>();
           setState(() {
             userModel.isOnline = false;
           });
+
+
           return "ok";
         }
       }else{
@@ -1065,6 +1040,17 @@ class _HomePageState extends State<HomePage> {
   void _printLongString(String text) {
     final RegExp pattern = RegExp('.{1,800}'); // 800 is the size of each chunk
     pattern.allMatches(text).forEach((RegExpMatch match) => print(match.group(0)));
+  }
+
+  int checkSecond(Case theCase){
+    DateTime now = DateTime.now();
+    if (theCase.dispatchTime != null) {
+      int timeDiff = now.difference(theCase.dispatchTime!).inSeconds;
+      print('timeDiff $timeDiff');
+      return 18-timeDiff;
+    }else{
+      return -1;
+    }
   }
 
 }

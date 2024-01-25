@@ -54,6 +54,7 @@ dependencies:
   shared_preferences: ^2.0.15
   flutter_background_geolocation: '^4.8.1'
   intl: ^0.18.1
+  liquid_pull_to_refresh: ^3.0.1
 
 dev_dependencies:
   flutter_test:

@@ -126,8 +126,8 @@ class Case {
     }
     feeTitle = json['fee_title'];
     feeStartFee = json['fee_start_fee'];
-    feeFifteenSecondFee = json['fee_fifteen_second_fee'];
-    feeTwoHundredMeterFee = json['fee_two_hundred_meter_fee'];
+    feeFifteenSecondFee = double.parse(json['fee_fifteen_second_fee']);
+    feeTwoHundredMeterFee = double.parse(json['fee_two_hundred_meter_fee']);
   }
 
   Map<String, dynamic> toJson() {

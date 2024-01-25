@@ -8,6 +8,7 @@ class TaskModel extends ChangeNotifier {
 
   bool isCanceled = false;
   bool isOnTask = false;
+  bool isOpenCaseRefresh = false;
   // List<Position> routePositions = [];
   double currentTaskPrice = 50.0;
   double totalDistance = 0;
@@ -17,6 +18,11 @@ class TaskModel extends ChangeNotifier {
   double currentVelocity = -1;
 
   DateTime? startTime;
+
+  String? feeTitle;
+  int startFee = 50;
+  double fifteenSecondFee = 0.5;
+  double twoHundredMeterFee = 4;
 
   void addCase(Case newCase){
     cases.add(newCase);
@@ -33,6 +39,13 @@ class TaskModel extends ChangeNotifier {
   }
 
   Future<void> setCurrentTaskPrice() async {
+
+    if(cases.first.feeTitle!=null && cases.first.feeTitle!=''){
+      startFee = cases.first.feeStartFee!;
+      fifteenSecondFee = cases.first.feeFifteenSecondFee!;
+      twoHundredMeterFee = cases.first.feeTwoHundredMeterFee!;
+    }
+
     int secondTotal = 0;
 
     if(startTime!=null){
@@ -42,14 +55,17 @@ class TaskModel extends ChangeNotifier {
 
     if(totalDistance >= 0.01){
       int totalDistanceInMeter = (totalDistance * 1000).floor();
-      int times = totalDistanceInMeter ~/ 5;
-      currentTaskPrice = 50.0 + times * 0.1;
+      int times = totalDistanceInMeter ~/ 25;
+      double twentyFiveMeterFee = twoHundredMeterFee / 8;
+
+      // currentTaskPrice = startFee.toDouble() + times * twoHundredMeterFee;
+      currentTaskPrice = startFee.toDouble() + times * twentyFiveMeterFee;
     }else{
-      currentTaskPrice = 50.0;
+      currentTaskPrice = startFee.toDouble();
     }
 
     int times = secondTotal~/15;
-    currentTaskPrice = currentTaskPrice +  times*0.5;
+    currentTaskPrice = currentTaskPrice +  times * fifteenSecondFee;
 
     print('current velocity $currentVelocity');
     print('total distance $totalDistance');
@@ -59,7 +75,7 @@ class TaskModel extends ChangeNotifier {
   }
 
   Future<void> resetTask() async {
-    currentTaskPrice = 50.0;
+    currentTaskPrice = startFee.toDouble();
     totalDistance = 0;
     // routePositions.clear();
     isOnTask = false;

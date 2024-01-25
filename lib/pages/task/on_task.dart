@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
+import 'package:flutter_taxi_chinghsien/models/user.dart';
 import 'package:flutter_taxi_chinghsien/notifier_models/task_model.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/home_page.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/on_task_change_address_dialog.dart';
@@ -126,9 +127,11 @@ class _OnTaskState extends State<OnTask> {
     taskModel.startTime ??= DateTime.now();
 
     if (taskModel.isOnTask==false) {
+      ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('開始計算路程！')));
       taskModel.isOnTask = true;
       bg.BackgroundGeolocation.setOdometer(0.0).catchError((error) {
         print('********** [resetOdometer] ERROR: $error');
+        ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(SnackBar(content: Text('ERROR: $error')));
       });
     }
 
@@ -330,7 +333,12 @@ class _OnTaskState extends State<OnTask> {
                                 borderRadius: BorderRadius.circular(4),),
                               child:
                               Consumer<TaskModel>(builder: (context, taskModel, child){
-                                priceController.text = taskModel.currentTaskPrice.toString();
+
+                                if(taskModel.currentTaskPrice==50.0){
+                                  priceController.text = taskModel.startFee.toDouble().toString();
+                                }else{
+                                  priceController.text = taskModel.currentTaskPrice.toStringAsFixed(1);
+                                }
                                 return TextFormField(
                                   validator: (String? value) {
                                     return (value != null ) ? '此為必填欄位' : null;
@@ -544,6 +552,7 @@ class _OnTaskState extends State<OnTask> {
       Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
       if(map['message']=='ok'){
         var taskModel = context.read<TaskModel>();
+        var userModel = context.read<UserModel>();
         taskModel.resetTask();
         print('here on task finish');
         print(taskModel.cases);
@@ -557,7 +566,6 @@ class _OnTaskState extends State<OnTask> {
           _fetchTimer = null;
         }
 
-        var userModel = context.read<UserModel>();
         userModel.user!.leftMoney = map["after_left_money"];
 
         await showDialog<String>(
@@ -569,6 +577,7 @@ class _OnTaskState extends State<OnTask> {
 
         if(taskModel.cases.isEmpty) {
           taskModel.isCanceled = false;
+          taskModel.isOnTask = false;
           Navigator.popUntil(context, ModalRoute.withName('/main'));
         }
         // else{

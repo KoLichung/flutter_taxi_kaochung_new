@@ -7,8 +7,9 @@ class CustomElevatedButton extends StatelessWidget {
   final String title;
   Color? color;
   double theHeight = 46;
+  bool? isChangeToSmallSize;
 
-  CustomElevatedButton({Key? key, required this.onPressed,required this.title, this.color, required this.theHeight}) : super(key: key);
+  CustomElevatedButton({Key? key, required this.onPressed,required this.title,required this.theHeight, this.color, this.isChangeToSmallSize}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +24,11 @@ class CustomElevatedButton extends StatelessWidget {
           child: SizedBox(
             height: theHeight,
             child: Align(
-              child: Text(title,style: const TextStyle(fontSize: 20),textAlign: TextAlign.center,),
+              child:
+              (isChangeToSmallSize==null)?
+              Text(title,style: const TextStyle(fontSize: 20),textAlign: TextAlign.center,)
+              :
+              Text(title,style: const TextStyle(fontSize: 15),textAlign: TextAlign.center,),
               alignment: Alignment.center,
             ),
           )
