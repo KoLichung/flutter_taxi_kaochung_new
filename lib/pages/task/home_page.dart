@@ -331,25 +331,40 @@ class _HomePageState extends State<HomePage> {
                     (myCases[i].timeMemo!="")?Text('時間：${myCases[i].timeMemo}'):Container(),
                     (myCases[i].memo!="")?Text('備註：${myCases[i].memo}'):Container(),
                     const SizedBox(height: 10,),
-                    CustomElevatedButton(
-                      theHeight: 46,
-                        onPressed: (){
-                          var userModel = context.read<UserModel>();
-                          _putCaseConfirm(userModel.token!, myCases[i]);
-                          myCases.removeAt(i);
-                          // ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('接單中~~')));
-                        },
-                        title: '接單'),
-                    CustomElevatedButton(
-                      theHeight: 46,
-                      onPressed: (){
-                        var userModel = context.read<UserModel>();
-                        _putCaseRefuse(userModel.token!, myCases[i]);
-                        myCases.removeAt(i);
-                        isRefusing = true;
-                      },
-                      title: '拒絕',
-                      color: AppColor.red)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: CustomElevatedButton(
+                                theHeight: 46,
+                                onPressed: (){
+                                  var userModel = context.read<UserModel>();
+                                  _putCaseConfirm(userModel.token!, myCases[i]);
+                                  myCases.removeAt(i);
+                                  // ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('接單中~~')));
+                                },
+                                title: '接單'),
+                          ),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: CustomElevatedButton(
+                                theHeight: 46,
+                                onPressed: (){
+                                  var userModel = context.read<UserModel>();
+                                  _putCaseRefuse(userModel.token!, myCases[i]);
+                                  myCases.removeAt(i);
+                                  isRefusing = true;
+                                },
+                                title: '拒絕',
+                                color: AppColor.red),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],),);
             });
   }
@@ -564,15 +579,9 @@ class _HomePageState extends State<HomePage> {
       List body = map["cases"];
 
       var userModel = context.read<UserModel>();
-      var taskModel = context.read<TaskModel>();
 
       userModel.user!.leftMoney = map["left_money"];
       userModel.user!.violation_time = map["violation_time"];
-
-      taskModel.feeTitle = map['user_fee_title'];
-      taskModel.startFee = map['user_start_fee'];
-      taskModel.fifteenSecondFee = map['user_fifteen_second_fee'];
-      taskModel.twoHundredMeterFee = map['user_two_hundred_meter_fee'];
 
       if (map["penalty_datetime"] != null){
         userModel.user!.penalty_datetime = DateTime.parse(map["penalty_datetime"]);
@@ -581,9 +590,10 @@ class _HomePageState extends State<HomePage> {
         userModel.user!.penalty_datetime = null;
       }
 
-      // 如果 left money < -100, 自動下線
-      if(map["left_money"]<= -100 || userModel.user!.violation_time == 5){
+      // 如果 left money < 0, 自動下線
+      if(map["left_money"]<= 0 || userModel.user!.violation_time == 5){
         actionOffline();
+        ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('您的儲值金額小於0元！')));
       }else{
         List<Case> cases = body.map((value) => Case.fromJson(value)).toList();
         if(cases.isNotEmpty && cases.first.caseState!='dispatching'){
@@ -595,7 +605,6 @@ class _HomePageState extends State<HomePage> {
           taskModel.cases.add(cases.first);
           if(cases.first.caseState=='way_to_catch'){
             if(!isCaseConfirming) {
-              print('hererererererererer');
               pushToCurrentTask(cases.first);
             }
           }else if(cases.first.caseState=='canceled' || cases.first.caseState=='finished'){
@@ -647,8 +656,12 @@ class _HomePageState extends State<HomePage> {
       _timer!.cancel();
       _timer = null;
     }
-    await Navigator.push(context, MaterialPageRoute(builder: (context) =>  CurrentTask(theCase: theCase, isOpenCase: false)));
+
     var taskModel = context.read<TaskModel>();
+    taskModel.cases.clear();
+    taskModel.cases.add(theCase);
+    await Navigator.push(context, MaterialPageRoute(builder: (context) =>  const CurrentTask(isOpenCase: false)));
+
 
     if(taskModel.isCanceled == true){
       myCases.clear();
@@ -666,10 +679,14 @@ class _HomePageState extends State<HomePage> {
 
     var userModel = context.read<UserModel>();
     if (userModel.isOnline && _timer == null){
-      print('start timer');
-      _timer = Timer.periodic(Duration(seconds: timerPeriod), (timer) {
-        _fetchCases(userModel.token!);
-      });
+      if(taskModel.cases.isEmpty){
+        print('start timer');
+        _timer = Timer.periodic(Duration(seconds: timerPeriod), (timer) {
+          _fetchCases(userModel.token!);
+        });
+      }else{
+        _putCaseConfirm(userModel.token!, taskModel.cases.first);
+      }
     }
   }
 
@@ -679,8 +696,12 @@ class _HomePageState extends State<HomePage> {
       _timer!.cancel();
       _timer = null;
     }
-    await Navigator.push(context, MaterialPageRoute(builder: (context) => OnTask(theCase: theCase)));
+
     var taskModel = context.read<TaskModel>();
+    taskModel.cases.clear();
+    taskModel.cases.add(theCase);
+    await Navigator.push(context, MaterialPageRoute(builder: (context) => OnTask(theCase: theCase)));
+
     if(taskModel.isCanceled==true){
       myCases.clear();
       _playCancelAsset();
@@ -698,10 +719,14 @@ class _HomePageState extends State<HomePage> {
 
     var userModel = context.read<UserModel>();
     if (userModel.isOnline && _timer == null){
-      print('start timer');
-      _timer = Timer.periodic(Duration(seconds: timerPeriod), (timer) {
-        _fetchCases(userModel.token!);
-      });
+      if(taskModel.cases.isEmpty){
+        print('back from onTask start timer');
+        _timer = Timer.periodic(Duration(seconds: timerPeriod), (timer) {
+          _fetchCases(userModel.token!);
+        });
+      }else{
+       _putCaseConfirm(userModel.token!, taskModel.cases.first);
+      }
     }
   }
 
@@ -744,7 +769,7 @@ class _HomePageState extends State<HomePage> {
         taskModel.cases.clear();
         taskModel.cases.add(theCase);
 
-        final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => CurrentTask(theCase: theCase, isOpenCase: false)));
+        final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => CurrentTask(isOpenCase: false)));
         isCaseConfirming = false;
 
         print(result);
@@ -765,10 +790,14 @@ class _HomePageState extends State<HomePage> {
 
         var userModel = context.read<UserModel>();
         if (userModel.isOnline && _timer == null){
-          print('start timer');
-          _timer = Timer.periodic(Duration(seconds: timerPeriod), (timer) {
-            _fetchCases(userModel.token!);
-          });
+          if(taskModel.cases.isEmpty){
+            print('start timer');
+            _timer = Timer.periodic(Duration(seconds: timerPeriod), (timer) {
+              _fetchCases(userModel.token!);
+            });
+          }else{
+            _putCaseConfirm(userModel.token!, taskModel.cases.first);
+          }
         }
       }else{
         isCaseConfirming = false;
@@ -777,6 +806,15 @@ class _HomePageState extends State<HomePage> {
           _taskTimer!.cancel();
           _taskTimer=null;
         }
+
+        var userModel = context.read<UserModel>();
+        if (userModel.isOnline && _timer == null){
+          print('start timer');
+          _timer = Timer.periodic(Duration(seconds: timerPeriod), (timer) {
+            _fetchCases(userModel.token!);
+          });
+        }
+
         ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('這個單可能已經被接走！')));
       }
 

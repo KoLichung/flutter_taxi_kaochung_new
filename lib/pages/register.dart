@@ -42,8 +42,8 @@ class _RegisterState extends State<Register> {
   DriverGender? _driverGender = DriverGender.male;
 
   List<CarTeam> carTeams=[];
-  List<String> carTeamsString =[];
-  String dropdownValue = '';
+  List<String> carTeamsString =['----'];
+  String dropdownValue = '----';
 
 
   @override
@@ -104,7 +104,7 @@ class _RegisterState extends State<Register> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const Text('選擇車隊'),
+                          const Text('*選擇車隊'),
                           const SizedBox(width: 15,),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -227,8 +227,12 @@ class _RegisterState extends State<Register> {
                             _putUpdateUserData(userModel.token!, user, user.isOnline!);
                           }else{
                             // _postCreateUser(user, widget.lineId);
-                            _postCreateUser(user, phoneNumberController.text, pwdController.text);
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('註冊中，請稍待~')));
+                            if(dropdownValue!='----') {
+                              _postCreateUser(user, phoneNumberController.text, pwdController.text);
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('註冊中，請稍待~')));
+                            }else{
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('車隊必須選擇！')));
+                            }
                           }
                           // Navigator.pushAndRemoveUntil(
                           //   context,

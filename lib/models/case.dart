@@ -34,6 +34,9 @@ class Case {
   double? feeFifteenSecondFee;
   double? feeTwoHundredMeterFee;
 
+  int? userExpectSecond;
+  bool? isNextCase;
+
   Case(
       {this.id,
         this.caseState,
@@ -64,6 +67,8 @@ class Case {
         this.feeStartFee,
         this.feeFifteenSecondFee,
         this.feeTwoHundredMeterFee,
+        this.userExpectSecond,
+        this.isNextCase,
       });
 
   Case.fromJson(Map<String, dynamic> json) {
@@ -128,6 +133,12 @@ class Case {
     feeStartFee = json['fee_start_fee'];
     feeFifteenSecondFee = double.parse(json['fee_fifteen_second_fee']);
     feeTwoHundredMeterFee = double.parse(json['fee_two_hundred_meter_fee']);
+    if(json['user_expect_second']!=null){
+      userExpectSecond = json['user_expect_second'];
+    }else{
+      userExpectSecond = 0;
+    }
+    isNextCase = json['is_next_case'];
   }
 
   Map<String, dynamic> toJson() {

@@ -10,7 +10,7 @@ class TaskModel extends ChangeNotifier {
   bool isOnTask = false;
   bool isOpenCaseRefresh = false;
   // List<Position> routePositions = [];
-  double currentTaskPrice = 50.0;
+  double currentTaskPrice = 0;
   double totalDistance = 0;
   // int secondTotal = 0;
 
@@ -40,12 +40,6 @@ class TaskModel extends ChangeNotifier {
 
   Future<void> setCurrentTaskPrice() async {
 
-    if(cases.first.feeTitle!=null && cases.first.feeTitle!=''){
-      startFee = cases.first.feeStartFee!;
-      fifteenSecondFee = cases.first.feeFifteenSecondFee!;
-      twoHundredMeterFee = cases.first.feeTwoHundredMeterFee!;
-    }
-
     int secondTotal = 0;
 
     if(startTime!=null){
@@ -67,15 +61,15 @@ class TaskModel extends ChangeNotifier {
     int times = secondTotal~/15;
     currentTaskPrice = currentTaskPrice +  times * fifteenSecondFee;
 
-    print('current velocity $currentVelocity');
-    print('total distance $totalDistance');
-    print('startTime $startTime');
-    print('total second $secondTotal');
+    // print('current velocity $currentVelocity');
+    // print('total distance $totalDistance');
+    // print('startTime $startTime');
+    // print('total second $secondTotal');
     notifyListeners();
   }
 
   Future<void> resetTask() async {
-    currentTaskPrice = startFee.toDouble();
+    currentTaskPrice = 0;
     totalDistance = 0;
     // routePositions.clear();
     isOnTask = false;

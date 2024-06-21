@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_taxi_chinghsien/models/user.dart';
 import 'package:flutter_taxi_chinghsien/notifier_models/task_model.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/home_page.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/on_task_change_address_dialog.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:flutter/material.dart';
@@ -20,6 +22,7 @@ import '../../models/case.dart';
 import '../../notifier_models/user_model.dart';
 import '../../widgets/custom_elevated_button.dart';
 import '../../widgets/custom_small_elevated_button.dart';
+import 'current_task.dart';
 import 'on_task_passenger_off_dialog.dart';
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 
@@ -54,10 +57,11 @@ class _OnTaskState extends State<OnTask> {
   Timer? _buttonTimer;
   int _buttonSeconds = 300;
   DateTime? buttonStartTime;
-
-
+  
   DateTime? startTime;
   Timer? _fetchTimer;
+
+  bool _isDialogShowing = false;
 
   Future<void> _startButtonTimer() async {
 
@@ -106,6 +110,25 @@ class _OnTaskState extends State<OnTask> {
 
     offAddress = widget.theCase.offAddress!;
 
+    print('init case state ${widget.theCase.caseState}');
+
+    var taskModel = context.read<TaskModel>();
+    print('print current task price ${taskModel.currentTaskPrice}');
+    if(taskModel.currentTaskPrice < 10){
+      print(taskModel.cases.first.feeTitle);
+      if(taskModel.cases.isNotEmpty && taskModel.cases.first.feeTitle!=null && taskModel.cases.first.feeTitle!='') {
+        taskModel.currentTaskPrice = taskModel.cases.first.feeStartFee!.toDouble();
+        taskModel.startFee = taskModel.cases.first.feeStartFee!;
+        taskModel.fifteenSecondFee = taskModel.cases.first.feeFifteenSecondFee!;
+        taskModel.twoHundredMeterFee = taskModel.cases.first.feeTwoHundredMeterFee!;
+      }else{
+        taskModel.currentTaskPrice = 50;
+        taskModel.startFee = 50;
+        taskModel.fifteenSecondFee = 0.5;
+        taskModel.twoHundredMeterFee = 4;
+      }
+    }
+
     if(widget.theCase.caseState=='arrived'){
       _startButtonTimer();
       var taskModel = context.read<TaskModel>();
@@ -115,7 +138,13 @@ class _OnTaskState extends State<OnTask> {
     }else if(widget.theCase.caseState=='catched'){
       taskStatus = '載客中';
       isPassengerOnBoard = true;
+      print('need to start task timer');
       _startTaskTimer();
+
+      var taskModel = context.read<TaskModel>();
+      _fetchTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+        _fetchCaseState(userToken!, taskModel.cases.first.id!);
+      });
     }
 
   }
@@ -126,19 +155,33 @@ class _OnTaskState extends State<OnTask> {
     var taskModel = context.read<TaskModel>();
     taskModel.startTime ??= DateTime.now();
 
+    sleep(const Duration(seconds: 2));
+
+    print('task model isOnTask ${taskModel.isOnTask}');
     if (taskModel.isOnTask==false) {
-      ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('開始計算路程！')));
+      Future.microtask(() {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(const SnackBar(content: Text('開始計算路程！')));
+      });
       taskModel.isOnTask = true;
       bg.BackgroundGeolocation.setOdometer(0.0).catchError((error) {
         print('********** [resetOdometer] ERROR: $error');
-        ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(SnackBar(content: Text('ERROR: $error')));
+        Future.microtask(() {
+          ScaffoldMessenger.of(context)
+            ..removeCurrentSnackBar()
+            ..showSnackBar(SnackBar(content: Text('ERROR: $error')));
+        });
       });
     }
 
+    print('current taskTimer $_taskTimer');
     _taskTimer ??= Timer.periodic(const Duration(seconds: 5), (timer) {
         // 5 秒計算一次時間
         var taskModel = context.read<TaskModel>();
-        taskModel.setCurrentTaskPrice();
+        Future.microtask(() {
+          taskModel.setCurrentTaskPrice();
+        });
       });
   }
 
@@ -333,12 +376,7 @@ class _OnTaskState extends State<OnTask> {
                                 borderRadius: BorderRadius.circular(4),),
                               child:
                               Consumer<TaskModel>(builder: (context, taskModel, child){
-
-                                if(taskModel.currentTaskPrice==50.0){
-                                  priceController.text = taskModel.startFee.toDouble().toString();
-                                }else{
-                                  priceController.text = taskModel.currentTaskPrice.toStringAsFixed(1);
-                                }
+                                priceController.text = taskModel.currentTaskPrice.toStringAsFixed(1);
                                 return TextFormField(
                                   validator: (String? value) {
                                     return (value != null ) ? '此為必填欄位' : null;
@@ -423,7 +461,53 @@ class _OnTaskState extends State<OnTask> {
                       ),
                     ],
                   ),
-                )
+                ),
+                (taskModel.cases.length>1)?Container(
+                    margin: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                        border: Border.all(color: AppColor.primary, width: 1),
+                        borderRadius: BorderRadius.circular(3)),
+                    child:Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            RichText(
+                              text: TextSpan(
+                                text: '下一個任務：',
+                                style: const TextStyle(color: AppColor.primary, fontSize: 18,),
+                                children: <TextSpan>[
+                                  TextSpan(text: '',style: const TextStyle(color: AppColor.red,fontSize: 22,fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                            Text('${taskModel.cases.last.carTeamName}')
+                          ],
+                        ),
+                        Container(
+                          margin: const EdgeInsets.fromLTRB(0,10,0,0),
+                          child: Row(
+                            children: [
+                              Text('上車地：${taskModel.cases.last.onAddress}'),
+                              const SizedBox(width: 5,),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 10,),
+                            (taskModel.cases.last.offAddress!="")?Text('下車地：${taskModel.cases.last.offAddress}'):Container(),
+                            (taskModel.cases.last.timeMemo!="")?Text('時間：${taskModel.cases.last.timeMemo}'):Container(),
+                            (taskModel.cases.last.memo!="")?Text('備註：${taskModel.cases.last.memo}'):Container(),
+                          ],
+                        )
+                      ],
+                    )
+                ):Container(),
               ],
             );
           })
@@ -580,9 +664,9 @@ class _OnTaskState extends State<OnTask> {
           taskModel.isOnTask = false;
           Navigator.popUntil(context, ModalRoute.withName('/main'));
         }
-        // else{
-        //   Navigator.pop(context);
-        // }
+
+        //回到首頁,再用 taskModel.cases.isEmpty 來判斷下一步
+        Navigator.popUntil(context, ModalRoute.withName('/main'));
 
       }else{
         ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('可能網路不佳，請再試一次！')));
@@ -597,7 +681,7 @@ class _OnTaskState extends State<OnTask> {
   }
 
   Future _fetchCaseState(String token, int caseId) async {
-    String path = ServerApi.PATH_GET_CASE_DETAIL;
+    String path = ServerApi.PATH_GET_CASE_STATE_WITH_NEXT_CASE;
     print(token);
     try {
       final queryParameters = {
@@ -606,14 +690,54 @@ class _OnTaskState extends State<OnTask> {
 
       final response = await http.get(
         ServerApi.standard(path: path,queryParameters: queryParameters),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': 'token $token'
+        },
       );
 
-      // print(response.body);
+      _printLongString(response.body);
 
       Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
-      Case currentCase = Case.fromJson(map);
-      print('case state ${currentCase.caseState}');
-      if(currentCase.caseState=='canceled'){
+
+      String currentCaseState = map['current_case_state'];
+      print('current case state $currentCaseState');
+
+      if (map['confirmed_next_case'] != null){
+        var taskModel = context.read<TaskModel>();
+        if (taskModel.cases.length == 1){
+          Case confirmedCase = Case.fromJson(map['confirmed_next_case']);
+          taskModel.cases.add(confirmedCase);
+        }
+      }
+
+      if (map['query_next_case'] != null){
+        Case nextCase = Case.fromJson(map['query_next_case']);
+
+        DateTime dispatchTime = nextCase.dispatchTime!;
+        DateTime now = DateTime.now();
+        int leftSecs = 18 - now.difference(dispatchTime).inSeconds;
+
+        print(nextCase);
+        // 彈出視窗~
+
+        if (_isDialogShowing == false && leftSecs >= 1){
+          _isDialogShowing = true;
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext context) {
+              var userModel = context.read<UserModel>();
+              return MyDialog(currentPosition: userModel.currentPosition!, theNextCase: nextCase);
+            },
+          ).then((value) => {
+            _isDialogShowing = value
+          });
+        }
+
+      }
+
+      if(currentCaseState == 'canceled'){
         if(_fetchTimer!=null){
           _fetchTimer!.cancel();
           _fetchTimer = null;
@@ -628,8 +752,15 @@ class _OnTaskState extends State<OnTask> {
         }
         var taskModel = context.read<TaskModel>();
         taskModel.resetTask();
+        // resetTask 只是移除最先放入的那個！
+
         //回到首頁並帶參數
-        taskModel.isCanceled = true;
+        if(taskModel.cases.isEmpty) {
+          taskModel.isCanceled = true;
+          taskModel.isOnTask = false;
+        }
+
+        //回到首頁,再用 taskModel.cases.isEmpty 來判斷下一步
         Navigator.popUntil(context, ModalRoute.withName('/main'));
       }
 
@@ -656,6 +787,221 @@ class _OnTaskState extends State<OnTask> {
   // }
 
 }
+
+class MyDialog extends StatefulWidget {
+  final Case theNextCase;
+  final Position currentPosition;
+
+  const MyDialog({Key? key, required this.theNextCase, required this.currentPosition}) : super(key: key);
+
+  @override
+  _MyDialogState createState() => _MyDialogState();
+}
+
+class _MyDialogState extends State<MyDialog> {
+  late Timer _timer;
+  int _taskWaitingTime = 17;
+  bool isResponseConfirming = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 定时器，每秒更新一次计数器
+    DateTime dispatchTime = widget.theNextCase.dispatchTime!;
+    print('dispatch time $dispatchTime');
+    DateTime now = DateTime.now();
+    _taskWaitingTime = 18 - now.difference(dispatchTime).inSeconds;
+
+    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      setState(() {
+        _taskWaitingTime--;
+
+        if(_taskWaitingTime <= 0){
+          Navigator.pop(context, false);
+        }
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Container(
+        height: 300,
+        margin: const EdgeInsets.symmetric(horizontal: 18,vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14,vertical: 14),
+        decoration: BoxDecoration(
+            border: Border.all(color: AppColor.primary, width: 1),
+            borderRadius: BorderRadius.circular(3)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Text('空派任務：${myCases[i].shipState!}'),
+            Center(child: Text('倒數：$_taskWaitingTime 秒')),
+            Text('${widget.theNextCase.carTeamName}'),
+            Row(children: [
+              Container(
+                margin:const EdgeInsets.fromLTRB(0,4,8,0),
+                padding:const EdgeInsets.symmetric(vertical: 2,horizontal: 8),
+                decoration:BoxDecoration(
+                  border: Border.all(color: AppColor.primary, width: 1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+                child: const Text('客戶',style: TextStyle(color: AppColor.primary),),
+              ),
+              Text('距離 ${_getDistance(widget.theNextCase, widget.currentPosition)}'),
+            ],),
+            Text('預計行車時間：${_getExpectTimeString(widget.theNextCase.expectSecond! + 120)}'),
+            Text('上車地：${widget.theNextCase.onAddress}'),
+            // (myCases[i].offAddress!="")?Text('下車地：${myCases[i].offAddress}'):Container(),
+            (widget.theNextCase.timeMemo!="")?Text('時間：${widget.theNextCase.timeMemo}'):Container(),
+            (widget.theNextCase.memo!="")?Text('備註：${widget.theNextCase.memo}'):Container(),
+            const SizedBox(height: 10,),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: CustomElevatedButton(
+                        theHeight: 46,
+                        onPressed: (){
+                          if (isResponseConfirming == false){
+                            isResponseConfirming = true;
+                            var userModel = context.read<UserModel>();
+                            _putCaseConfirm(userModel.token!, widget.theNextCase);
+                          }
+                        },
+                        title: '接單'),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: CustomElevatedButton(
+                        theHeight: 46,
+                        onPressed: (){
+                          if (isResponseConfirming == false){
+                            isResponseConfirming = true;
+                            var userModel = context.read<UserModel>();
+                            _putCaseRefuse(userModel.token!, widget.theNextCase);
+                          }
+
+                        },
+                        title: '拒絕',
+                        color: AppColor.red),
+                  ),
+                ),
+              ],
+            ),
+          ],),)
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  String _getDistance(Case theCase, Position currentPosition){
+    double distance = Geolocator.distanceBetween(currentPosition.latitude, currentPosition.longitude, double.parse(theCase.onLat!), double.parse(theCase.onLng!));
+    if(distance > 1000){
+      distance = distance / 1000;
+      return distance.toStringAsFixed(2) + " 公里";
+    }else{
+      return distance.toStringAsFixed(0) + " 公尺";
+    }
+  }
+
+  String _getExpectTimeString(int seconds){
+    int integer = seconds ~/ 60;
+    int remainder = seconds % 60;
+    if (integer == 0){
+      return '預估時間 $remainder 秒';
+    }else{
+      return '預估時間 $integer 分 $remainder 秒';
+    }
+  }
+
+  Future _putCaseConfirm(String token, Case theCase) async {
+    print("case confirm");
+    String path = ServerApi.PATH_CASE_CONFIREM;
+
+    try {
+      final queryParameters = {
+        'case_id': theCase.id!.toString(),
+      };
+
+      final response = await http.put(
+        ServerApi.standard(path: path, queryParameters: queryParameters),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': 'Token $token',
+        },
+      );
+
+      // _printLongString(response.body);
+
+      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+
+      if(map['message']=='ok'){
+        _timer.cancel();
+        ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('已順利接到下一單！')));
+
+      }else{
+        ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('系統問題，未順利接單！')));
+      }
+      isResponseConfirming = false;
+      Navigator.pop(context, false);
+    } catch (e) {
+      print(e);
+      ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('系統問題，未順利接單！')));
+      // return "error";
+      isResponseConfirming = false;
+      Navigator.pop(context, false);
+    }
+  }
+
+  Future _putCaseRefuse(String token, Case theCase) async {
+    print("case refuse");
+    String path = ServerApi.PATH_CASE_REFUSE;
+
+    try {
+      final queryParameters = {
+        'case_id': theCase.id!.toString(),
+      };
+
+      final response = await http.put(
+        ServerApi.standard(path: path, queryParameters: queryParameters),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': 'Token $token',
+        },
+      );
+
+      _printLongString(response.body);
+
+      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+
+      if(map['message']=='ok'){
+        _timer.cancel();
+        ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('您拒絕了這個單子！')));
+      }
+
+      Navigator.pop(context, false);
+    } catch (e) {
+      print(e);
+      Navigator.pop(context, false);
+    }
+  }
+
+  void _printLongString(String text) {
+    final RegExp pattern = RegExp('.{1,800}'); // 800 is the size of each chunk
+    pattern.allMatches(text).forEach((RegExpMatch match) => print(match.group(0)));
+  }
+}
+
 
 
 

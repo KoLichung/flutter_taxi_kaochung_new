@@ -97,12 +97,12 @@ class _MyAccountPageState extends State<MyAccountPage> {
                   Navigator.pushNamed(context, '/money_record');
                 },
               ),
-              CustomMemberPageButton(
-                title: '費率變更',
-                onPressed: (){
-                  Navigator.push(context, MaterialPageRoute(builder: (context) =>  const FeeRulePage()));
-                },
-              ),
+              // CustomMemberPageButton(
+              //   title: '費率變更',
+              //   onPressed: (){
+              //     Navigator.push(context, MaterialPageRoute(builder: (context) =>  const FeeRulePage()));
+              //   },
+              // ),
               Container(
                 margin: const EdgeInsets.fromLTRB(30,20,30,0),
                 child: CustomElevatedButton(

@@ -1,5 +1,7 @@
 class ServerApi{
-  // static const _HOST ='chinghsien.com';
+  // static const _HOST ='localhost:8000';
+  // static const _HOST = 'itaxi.ngrok.app';
+
   static const _HOST ='app.24hcartaiwan.com';
 
   static const PATH_CREATE_USER = '/api/user/create/';
@@ -14,8 +16,9 @@ class ServerApi{
   static const PATH_STORE_MONEYS = '/api/user_store_moneys/';
   static const PATH_USER_CASE = '/api/user_cases/';
   static const PATH_UPDATE_LAT_LNG = '/api/update_lat_lng';
-  static const PATH_GET_CASES = '/api/get_cases/';
+  static const PATH_GET_CASES = '/api/v2_get_cases/';
   static const PATH_GET_CASE_DETAIL = '/api/case_detail';
+  static const PATH_GET_CASE_STATE_WITH_NEXT_CASE = '/api/case_state_with_next_case';
   static const PATH_GET_FEE_RULES = '/api/fee_rules/';
 
   static const PATH_CASE_CONFIREM = '/api/case_confirm';

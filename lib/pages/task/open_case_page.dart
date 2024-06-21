@@ -143,9 +143,9 @@ class _OpenCasePageState extends State<OpenCasePage> {
       userModel.user!.leftMoney = map["left_money"];
       print('leftmoney ${userModel.user!.leftMoney}');
 
-      if(map["left_money"]<= -100){
+      if(map["left_money"]<= 0){
         openCases = [];
-        ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('您的儲值金額小於-100元！無法閱讀案件')));
+        ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('您的儲值金額小於0元！無法閱讀案件')));
       }else {
         openCases = body.map((value) => Case.fromJson(value)).toList();
       }
@@ -197,9 +197,9 @@ class _OpenCasePageState extends State<OpenCasePage> {
       var userModel = context.read<UserModel>();
       userModel.user!.leftMoney = map["left_money"];
 
-      if(map["left_money"]<= -100){
+      if(map["left_money"]<= 0){
         openCases = [];
-        ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('您的儲值金額小於-100元！無法閱讀案件')));
+        ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('您的儲值金額小於0元！無法閱讀案件')));
       }else {
         openCases = body.map((value) => Case.fromJson(value)).toList();
       }

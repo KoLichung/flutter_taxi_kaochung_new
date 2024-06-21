@@ -295,7 +295,7 @@ class _OpenCaseDetailPageState extends State<OpenCaseDetailPage> {
         taskModel.isOpenCaseRefresh = true;
 
         theCase.expectSecond = (expect_minutes) * 60;
-        final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => CurrentTask(theCase: theCase, isOpenCase: true)));
+        final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const CurrentTask(isOpenCase: true)));
         isCaseConfirming = false;
 
         print(result);
@@ -305,7 +305,12 @@ class _OpenCaseDetailPageState extends State<OpenCaseDetailPage> {
           ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('訂單被取消了！')));
         }
 
-        setState(() {});
+        var userModel = context.read<UserModel>();
+        if(taskModel.cases.isNotEmpty){
+          _putCaseConfirm(userModel.token!, taskModel.cases.first, 0);
+        }else{
+          setState(() {});
+        }
 
       }else{
         isCaseConfirming = false;

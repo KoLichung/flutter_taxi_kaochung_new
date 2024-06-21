@@ -24,16 +24,19 @@ import 'package:map_launcher/map_launcher.dart';
 
 class CurrentTask extends StatefulWidget {
 
-  final Case theCase;
+  // final Case theCase;
   final bool isOpenCase;
 
-  const CurrentTask({Key? key,required this.theCase, required this.isOpenCase}) : super(key: key);
+  // const CurrentTask({Key? key,required this.theCase, required this.isOpenCase}) : super(key: key);
+  const CurrentTask({Key? key, required this.isOpenCase}) : super(key: key);
 
   @override
   _CurrentTaskState createState() => _CurrentTaskState();
 }
 
 class _CurrentTaskState extends State<CurrentTask> {
+
+  late Case theCase;
 
   String buttonText = '抵達乘客上車地點';
   bool isPassengerOnBoard = false;
@@ -59,9 +62,22 @@ class _CurrentTaskState extends State<CurrentTask> {
     var userModel = context.read<UserModel>();
     userToken = userModel.token!;
 
-    initExpectedSeconds = widget.theCase.expectSecond! + 120;
-    remainSeconds = initExpectedSeconds;
-    startTime ??= DateTime.now();
+    var taskModel = context.read<TaskModel>();
+    if(taskModel.cases.isNotEmpty) {
+      theCase = taskModel.cases.first;
+    }else{
+      Navigator.popUntil(context, ModalRoute.withName('/main'));
+    }
+
+    if(theCase.userExpectSecond!=0){
+      initExpectedSeconds = theCase.userExpectSecond! + 120;
+      remainSeconds = initExpectedSeconds;
+      startTime ??= DateTime.parse(theCase.confirmTime!);
+    }else{
+      initExpectedSeconds = theCase.expectSecond! + 120;
+      remainSeconds = initExpectedSeconds;
+      startTime ??= DateTime.now();
+    }
 
     _remainTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
       if(startTime!=null){
@@ -73,7 +89,7 @@ class _CurrentTaskState extends State<CurrentTask> {
     });
 
     _fetchTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      _fetchCaseState(userToken!, widget.theCase.id!);
+      _fetchCaseState(userToken!, theCase.id!);
     });
   }
 
