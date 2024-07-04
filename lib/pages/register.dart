@@ -187,12 +187,14 @@ class _RegisterState extends State<Register> {
                     title: widget.isEdit ? '確認修改' : '確認註冊',
                     theHeight: 46,
                     onPressed: (){
+
                         if (_formKey.currentState!.validate()) {
                           // ScaffoldMessenger.of(context).showSnackBar(
                           //   const SnackBar(
                           //       backgroundColor: Colors.black26,
                           //       content: Text('資料填寫成功')),
                           // );
+
                           var userModel = context.read<UserModel>();
                           User user = User();
                           if(userModel.user!=null){
@@ -373,9 +375,6 @@ class _RegisterState extends State<Register> {
     print(token);
     print(user.phone);
 
-    int carTeamId = carTeams.where((element) => element.name == dropdownValue).first.id!;
-    print('carTeamId $carTeamId');
-
     try {
       Map queryParameters = {
         'phone': user.phone,
@@ -388,8 +387,13 @@ class _RegisterState extends State<Register> {
         'number_sites': user.numberSites,
         'is_online': isOnline,
         'car_memo':user.carMemo,
-        'car_team':carTeamId,
       };
+
+      if(dropdownValue!="----"){
+        int carTeamId = carTeams.where((element) => element.name == dropdownValue).first.id!;
+        print('carTeamId $carTeamId');
+        queryParameters['car_team'] = carTeamId;
+      }
 
       final response = await http.put(
           ServerApi.standard(path: path),
@@ -400,7 +404,6 @@ class _RegisterState extends State<Register> {
           body: jsonEncode(queryParameters)
       );
       print(response.body);
-
 
       if(response.statusCode == 200){
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('資料更新成功~')));

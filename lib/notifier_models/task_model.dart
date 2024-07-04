@@ -38,7 +38,7 @@ class TaskModel extends ChangeNotifier {
     return secondTotal;
   }
 
-  Future<void> setCurrentTaskPrice() async {
+  Future<void> setCurrentTaskPrice(int dispatchCarTeamId) async {
 
     int secondTotal = 0;
 
@@ -52,8 +52,18 @@ class TaskModel extends ChangeNotifier {
       int times = totalDistanceInMeter ~/ 25;
       double twentyFiveMeterFee = twoHundredMeterFee / 8;
 
-      // currentTaskPrice = startFee.toDouble() + times * twoHundredMeterFee;
-      currentTaskPrice = startFee.toDouble() + times * twentyFiveMeterFee;
+      // EDM 超過 15 km, 每多完成 1km, 多 5 元
+      if (dispatchCarTeamId == 6){
+        if(totalDistanceInMeter > 1000){
+          // Calculate the additional fee for every 1000 meters beyond 15000 meters
+          int additionalFee = ((totalDistanceInMeter - 1000) / 1000).floor() * 5;
+          currentTaskPrice = startFee.toDouble() + times * twentyFiveMeterFee + additionalFee;
+        }else{
+          currentTaskPrice = startFee.toDouble() + times * twentyFiveMeterFee;
+        }
+      }else{
+        currentTaskPrice = startFee.toDouble() + times * twentyFiveMeterFee;
+      }
     }else{
       currentTaskPrice = startFee.toDouble();
     }
@@ -61,11 +71,31 @@ class TaskModel extends ChangeNotifier {
     int times = secondTotal~/15;
     currentTaskPrice = currentTaskPrice +  times * fifteenSecondFee;
 
+    currentTaskPrice = adjustTaskPrice(currentTaskPrice, dispatchCarTeamId);
     // print('current velocity $currentVelocity');
     // print('total distance $totalDistance');
     // print('startTime $startTime');
     // print('total second $secondTotal');
     notifyListeners();
+  }
+
+  double adjustTaskPrice(double currentTaskPrice, int dispatchCarTeamId) {
+    print('price before adjust $currentTaskPrice');
+    if (dispatchCarTeamId == 6) {
+      // Round to the nearest integer
+      int roundedPrice = currentTaskPrice.round();
+      int remainder = roundedPrice % 10;
+
+      if (remainder >= 5) {
+        roundedPrice = ((roundedPrice / 10).ceil() * 10).toInt();
+      } else {
+        roundedPrice = ((roundedPrice / 10).floor() * 10).toInt();
+      }
+      return roundedPrice.toDouble();
+    } else {
+      int roundedPrice = currentTaskPrice.round();
+      return ((roundedPrice / 10).floor() * 10).toDouble();
+    }
   }
 
   Future<void> resetTask() async {

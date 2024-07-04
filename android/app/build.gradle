@@ -47,8 +47,8 @@ android {
         minSdkVersion 24
 //        targetSdkVersion flutter.targetSdkVersion
         targetSdkVersion 33
-        versionCode 58
-        versionName '1.0.57'
+        versionCode 62
+        versionName '1.0.61'
     }
 
     buildTypes {

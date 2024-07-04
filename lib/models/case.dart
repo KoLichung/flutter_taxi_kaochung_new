@@ -2,6 +2,7 @@ import 'dart:ffi';
 
 class Case {
   int? id;
+  int? carTeamId;
   String? caseState;
   String? customerName;
   String? customerPhone;
@@ -39,6 +40,7 @@ class Case {
 
   Case(
       {this.id,
+        this.carTeamId,
         this.caseState,
         this.customerName,
         this.customerPhone,
@@ -73,6 +75,7 @@ class Case {
 
   Case.fromJson(Map<String, dynamic> json) {
     id = json['id'];
+    carTeamId = json['carTeam'];
     caseState = json['case_state'];
     customerName = json['customer_name'];
     customerPhone = json['customer_phone'];

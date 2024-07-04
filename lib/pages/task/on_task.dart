@@ -179,8 +179,9 @@ class _OnTaskState extends State<OnTask> {
     _taskTimer ??= Timer.periodic(const Duration(seconds: 5), (timer) {
         // 5 秒計算一次時間
         var taskModel = context.read<TaskModel>();
+
         Future.microtask(() {
-          taskModel.setCurrentTaskPrice();
+          taskModel.setCurrentTaskPrice(widget.theCase.carTeamId!);
         });
       });
   }
@@ -376,7 +377,7 @@ class _OnTaskState extends State<OnTask> {
                                 borderRadius: BorderRadius.circular(4),),
                               child:
                               Consumer<TaskModel>(builder: (context, taskModel, child){
-                                priceController.text = taskModel.currentTaskPrice.toStringAsFixed(1);
+                                priceController.text = taskModel.currentTaskPrice.toStringAsFixed(0);
                                 return TextFormField(
                                   validator: (String? value) {
                                     return (value != null ) ? '此為必填欄位' : null;

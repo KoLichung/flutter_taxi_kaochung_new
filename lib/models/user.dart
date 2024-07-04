@@ -19,6 +19,7 @@ class User {
 
   int? violation_time;
   DateTime? penalty_datetime;
+  int? main_car_team;
 
   User(
       {this.id,
@@ -40,6 +41,7 @@ class User {
         this.carMemo,
         this.violation_time,
         this.penalty_datetime,
+        this.main_car_team,
       });
 
   User.fromJson(Map<String, dynamic> json) {
@@ -78,6 +80,11 @@ class User {
       violation_time = json['violation_time'];
     }else{
       violation_time = 0;
+    }
+    if(json['main_car_team']!=null){
+      main_car_team = json['main_car_team'];
+    }else{
+      main_car_team = 0;
     }
   }
 
