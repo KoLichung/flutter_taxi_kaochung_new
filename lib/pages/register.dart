@@ -36,7 +36,7 @@ class _RegisterState extends State<Register> {
   TextEditingController carModelController = TextEditingController();
   TextEditingController carColorController = TextEditingController();
   TextEditingController seatNumberController = TextEditingController();
-  TextEditingController carMemoController = TextEditingController();
+  // TextEditingController carMemoController = TextEditingController();
   TextEditingController pwdController = TextEditingController();
 
   DriverGender? _driverGender = DriverGender.male;
@@ -68,7 +68,7 @@ class _RegisterState extends State<Register> {
       }
       carColorController.text = user.carColor!;
       seatNumberController.text = user.numberSites!.toString();
-      carMemoController.text = user.carMemo!;
+      // carMemoController.text = user.carMemo!;
 
       if(user.gender == '女'){
         _driverGender = DriverGender.female;
@@ -138,7 +138,7 @@ class _RegisterState extends State<Register> {
                 ),
                 const SizedBox(height: 20,),
                 validatorTextFormField('*真實姓名','',driverNameController, false),
-                validatorTextFormField('*暱稱','',nickNameController, false),
+                validatorTextFormField('*Line名稱','',nickNameController, false),
                 validatorTextFormField('*手機號碼','',phoneNumberController, false),
                 validatorTextFormField('*密碼','',pwdController, true),
                 registerTextField('身份證字號','',idNumberController),
@@ -147,40 +147,40 @@ class _RegisterState extends State<Register> {
                 validatorTextFormField('*車號(ABC-1234,請填 1234)','',carPlateController, false),
                 registerTextField('顏色','白',carColorController),
                 registerTextField('座位數','4',seatNumberController),
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 15,vertical: 2),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text.rich(
-                          TextSpan(children: [
-                            TextSpan(text: '駕駛備註'),
-                            TextSpan(text: '  車上禁菸、檳榔', style: TextStyle(color: Colors.red))
-                          ])
-                      ),
-                      Container(
-                        margin: const  EdgeInsets.symmetric(vertical: 6),
-                        height: 46,
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: Colors.black54,
-                            width: 1,),
-                          borderRadius: BorderRadius.circular(4),),
-                        child: TextField(
-                          style: const TextStyle(fontSize: 18),
-                          controller: carMemoController,
-                          decoration: InputDecoration(
-                            hintText: '車上不可飲食',
-                            hintStyle: TextStyle(color: Colors.grey.shade400),
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 13,vertical: 10),
-                            focusedBorder: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                          ),
-                        ),
-                      ),
-                    ],),
-                ),
+                // Container(
+                //   margin: const EdgeInsets.symmetric(horizontal: 15,vertical: 2),
+                //   child: Column(
+                //     crossAxisAlignment: CrossAxisAlignment.start,
+                //     children: [
+                //       const Text.rich(
+                //           TextSpan(children: [
+                //             TextSpan(text: '駕駛備註'),
+                //             TextSpan(text: '  車上禁菸、檳榔', style: TextStyle(color: Colors.red))
+                //           ])
+                //       ),
+                //       Container(
+                //         margin: const  EdgeInsets.symmetric(vertical: 6),
+                //         height: 46,
+                //         decoration: BoxDecoration(
+                //           border: Border.all(
+                //             color: Colors.black54,
+                //             width: 1,),
+                //           borderRadius: BorderRadius.circular(4),),
+                //         child: TextField(
+                //           style: const TextStyle(fontSize: 18),
+                //           controller: carMemoController,
+                //           decoration: InputDecoration(
+                //             hintText: '車上不可飲食',
+                //             hintStyle: TextStyle(color: Colors.grey.shade400),
+                //             isDense: true,
+                //             contentPadding: const EdgeInsets.symmetric(horizontal: 13,vertical: 10),
+                //             focusedBorder: InputBorder.none,
+                //             enabledBorder: InputBorder.none,
+                //           ),
+                //         ),
+                //       ),
+                //     ],),
+                // ),
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 30,vertical: 20),
                   child: CustomElevatedButton(
@@ -218,12 +218,12 @@ class _RegisterState extends State<Register> {
                             user.numberSites = 4;
                           }
                           // user.carMemo = carMemoController.text;
-                          String userCarMemo = carMemoController.text;
-                          if(userCarMemo.contains('車上禁菸、檳榔')){
-                            user.carMemo = carMemoController.text;
-                          } else {
-                            user.carMemo = '車上禁菸、檳榔 ' + carMemoController.text;
-                          }
+                          // String userCarMemo = carMemoController.text;
+                          // if(userCarMemo.contains('車上禁菸、檳榔')){
+                          //   user.carMemo = carMemoController.text;
+                          // } else {
+                          //   user.carMemo = '車上禁菸、檳榔 ' + carMemoController.text;
+                          // }
 
                           if(widget.isEdit) {
                             _putUpdateUserData(userModel.token!, user, user.isOnline!);
@@ -386,7 +386,7 @@ class _RegisterState extends State<Register> {
         'car_color': user.carColor,
         'number_sites': user.numberSites,
         'is_online': isOnline,
-        'car_memo':user.carMemo,
+        // 'car_memo':user.carMemo,
       };
 
       if(dropdownValue!="----"){
@@ -443,7 +443,7 @@ class _RegisterState extends State<Register> {
         'car_color': user.carColor,
         'number_sites': user.numberSites,
         // 'line_id': lineId,
-        'car_memo':user.carMemo,
+        // 'car_memo':user.carMemo,
         // 'password': "00000",
         'password': password,
         'car_team':carTeamId,

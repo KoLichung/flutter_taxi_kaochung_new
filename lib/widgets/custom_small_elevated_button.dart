@@ -18,8 +18,8 @@ class CustomSmallElevatedButton extends StatelessWidget {
           },
           style: ElevatedButton.styleFrom(
               padding: EdgeInsets.symmetric(horizontal: 10,vertical: 1),
+              backgroundColor: color,
               minimumSize: const Size(0, 0),
-              primary: color,
               elevation: 0
           ),
           child: Row(

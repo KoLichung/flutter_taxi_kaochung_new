@@ -163,7 +163,7 @@ class _CurrentTaskState extends State<CurrentTask> {
                                       if(!isAddressCopied){
                                         isAddressCopied = true;
                                       }
-                                      await Clipboard.setData(ClipboardData(text:  taskModel.cases.first.onAddress));
+                                      await Clipboard.setData(ClipboardData(text:  taskModel.cases.first.onAddress!));
                                       ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('已複製上車地址')));
                                       setState(() {});
                                       // bool isGoogleMaps = await MapLauncher.isMapAvailable(MapType.google) ?? false;

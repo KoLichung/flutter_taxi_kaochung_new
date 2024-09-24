@@ -197,7 +197,7 @@ class _HomePageState extends State<HomePage> {
 
   statusOnlineButton(){
     return ElevatedButton(
-        style: ElevatedButton.styleFrom(primary: AppColor.red,elevation: 0),
+        style: ElevatedButton.styleFrom(backgroundColor: AppColor.red,elevation: 0),
         child: const Text('點我休息'),
         onPressed: () async {
           actionOffline();
@@ -223,7 +223,7 @@ class _HomePageState extends State<HomePage> {
 
   statusOfflineButton(){
     return ElevatedButton(
-        style: ElevatedButton.styleFrom(primary: AppColor.green,elevation: 0),
+        style: ElevatedButton.styleFrom(backgroundColor: AppColor.green,elevation: 0),
         child: const Text('點我上線'),
         onPressed: () async {
 
@@ -390,18 +390,18 @@ class _HomePageState extends State<HomePage> {
   }
 
   offlineScene(){
-    return SingleChildScrollView(
+    return const SingleChildScrollView(
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const SizedBox(height: 100),
+            SizedBox(height: 100),
             Column(
-              children: const [
+              children: [
                 Icon(Icons.bolt_outlined,size: 40,),
                 Text('您現在休息中~'),
               ],),
-            const SizedBox(height: 50),
+            SizedBox(height: 50),
 
           ],
         ),
@@ -409,18 +409,14 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Future<AudioPlayer> _playLocalAsset() async {
-    AudioCache cache = AudioCache();
-    //At the next line, DO NOT pass the entire reference such as assets/yes.mp3. This will not work.
-    //Just pass the file name only.
-    return await cache.play("ding_dong.mp3");
+  Future _playLocalAsset() async {
+    AudioPlayer player = AudioPlayer();
+    await player.play(AssetSource("ding_dong.mp3"));
   }
 
-  Future<AudioPlayer> _playCancelAsset() async {
-    AudioCache cache = AudioCache();
-    //At the next line, DO NOT pass the entire reference such as assets/yes.mp3. This will not work.
-    //Just pass the file name only.
-    return await cache.play("cancel_2.mp3");
+  Future _playCancelAsset() async {
+    AudioPlayer player = AudioPlayer();
+    await player.play(AssetSource("cancel_2.mp3"));
   }
 
   Future<bool> _handlePermission() async {
@@ -815,7 +811,14 @@ class _HomePageState extends State<HomePage> {
           });
         }
 
-        ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('這個單可能已經被接走！')));
+        if(map['detail'].toString().contains('belong')){
+          ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('這個單可能已經被接走！')));
+        }else if(map['detail'].toString().contains('canceled')){
+          ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('任務已取消！')));
+        }else{
+          ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(SnackBar(content: Text(map['detail'].toString())));
+        }
+
       }
 
       setState(() {});
@@ -827,7 +830,7 @@ class _HomePageState extends State<HomePage> {
         _taskTimer!.cancel();
         _taskTimer=null;
       }
-      ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('這個單可能已經被接走！')));
+      ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(SnackBar(content: Text(e.toString())));
       // return "error";
     }
   }
@@ -862,13 +865,13 @@ class _HomePageState extends State<HomePage> {
         }
         ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('您拒絕了這個單子！')));
       }else{
-        ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('這個單可能已經被接走！')));
+        ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('任務已取消！')));
       }
 
       setState(() {});
     } catch (e) {
       print(e);
-      ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('這個單可能已經被接走！')));
+      ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(SnackBar(content: Text(e.toString())));
       // return "error";
     }
   }

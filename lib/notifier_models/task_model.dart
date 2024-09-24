@@ -54,9 +54,9 @@ class TaskModel extends ChangeNotifier {
 
       // EDM 超過 15 km, 每多完成 1km, 多 5 元
       if (dispatchCarTeamId == 6){
-        if(totalDistanceInMeter > 1000){
+        if(totalDistanceInMeter > 15000){
           // Calculate the additional fee for every 1000 meters beyond 15000 meters
-          int additionalFee = ((totalDistanceInMeter - 1000) / 1000).floor() * 5;
+          int additionalFee = ((totalDistanceInMeter - 15000) / 1000).floor() * 5;
           currentTaskPrice = startFee.toDouble() + times * twentyFiveMeterFee + additionalFee;
         }else{
           currentTaskPrice = startFee.toDouble() + times * twentyFiveMeterFee;

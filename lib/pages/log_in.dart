@@ -485,11 +485,9 @@ class _LogInState extends State<LogIn> {
     }
   }
 
-  Future<AudioPlayer> _playLocalAsset() async {
-    AudioCache cache = AudioCache();
-    //At the next line, DO NOT pass the entire reference such as assets/yes.mp3. This will not work.
-    //Just pass the file name only.
-    return await cache.play("ding_dong.mp3");
+  Future _playLocalAsset() async {
+    AudioPlayer player = AudioPlayer();
+    await player.play(AssetSource("ding_dong.mp3"));
   }
 
   void _printLongString(String text) {

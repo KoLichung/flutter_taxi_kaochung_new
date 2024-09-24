@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_line_sdk/flutter_line_sdk.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_taxi_chinghsien/pages/log_in.dart';
+import 'package:flutter_taxi_chinghsien/pages/member/case_record.dart';
 import 'package:flutter_taxi_chinghsien/pages/member/money_record.dart';
 import 'package:flutter_taxi_chinghsien/pages/member/my_account_page.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/disclosure_dialog.dart';
@@ -201,26 +202,39 @@ class MyApp extends StatelessWidget {
 
       theme: ThemeData(
         brightness: Brightness.light,
-        primaryColor: Colors.black54,
+        primaryColor: Colors.white,
         textTheme: const TextTheme(
-          button: TextStyle(fontSize: 16),
-          //headline6: AppBar title
-          headline6: TextStyle(fontSize: 18.0, fontWeight: FontWeight.w500),
-          //subtitle1: dropDownButton Text
-          //subtitle2: body title
-          subtitle2: TextStyle(color: AppColor.primary, fontSize: 20,fontWeight: FontWeight.bold, ),
-          //bodyText2: default body text
-          bodyText2: TextStyle(color: Colors.black, fontSize: 16,height: 1.6),
-          //bodyText1: body text big and bold
-          bodyText1: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w500),
+          labelLarge: TextStyle(fontSize: 16),
+          titleLarge: TextStyle(fontSize: 18.0, fontWeight: FontWeight.w500),
+          titleSmall: TextStyle(color: AppColor.primary, fontSize: 20,fontWeight: FontWeight.bold, ),
+          bodyMedium: TextStyle(color: Colors.black, fontSize: 16,height: 1.6),
+          bodyLarge: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w500),
         ),
         checkboxTheme: CheckboxThemeData(
-          fillColor: MaterialStateProperty.all(AppColor.primary),
-          checkColor: MaterialStateProperty.all(Colors.white),
+          fillColor: WidgetStateProperty.all(AppColor.primary),
+          checkColor: WidgetStateProperty.all(Colors.white),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ButtonStyle(
+            // 設定按鈕文字顏色為白色
+            foregroundColor: WidgetStateProperty.all(Colors.white),
+            // 設定按鈕背景顏色
+            // backgroundColor: WidgetStateProperty.all(AppColor.primary),
+          ),
         ),
         appBarTheme: const AppBarTheme(
             color: Colors.black87,
-            elevation: 0
+            elevation: 0,
+            // 設定 AppBar 文字顏色
+            foregroundColor: Colors.white, // 標題文字顏色
+            // 設定返回按鈕和其他圖標的顏色
+            iconTheme: IconThemeData(
+              color: Colors.white, // 返回按鈕和其他圖標的顏色
+            ),
+            // 若你需要設定 AppBar actions 的圖標顏色：
+            actionsIconTheme: IconThemeData(
+              color: Colors.white, // 右側 actions 圖標的顏色
+            ),
         ),
       ),
       debugShowCheckedModeBanner: false,
@@ -231,6 +245,7 @@ class MyApp extends StatelessWidget {
         '/main': (context) => const MyHomePage(),
         '/log_in': (context) => const LogIn(),
         '/money_record': (context) => const MoneyRecord(),
+        '/case_record': (context) => const CaseRecord(),
       },
       builder: (context, child){
         return MediaQuery(data: MediaQuery.of(context).copyWith(textScaleFactor: 1.1), child: Container(child: child)
@@ -259,7 +274,7 @@ class _MyHomePageState extends State<MyHomePage> {
       print('[location] - $location');
 
       var userModel = context.read<UserModel>();
-      userModel.currentPosition = Position(longitude: location.coords.longitude, latitude: location.coords.latitude, timestamp: DateTime.now(), accuracy: location.coords.accuracy, altitude: location.coords.altitude, heading: location.coords.heading, speed: location.coords.speed, speedAccuracy: location.coords.accuracy);
+      userModel.currentPosition = Position(longitude: location.coords.longitude, latitude: location.coords.latitude, timestamp: DateTime.now(), accuracy: location.coords.accuracy, altitude: location.coords.altitude, heading: location.coords.heading, speed: location.coords.speed, speedAccuracy: location.coords.accuracy, altitudeAccuracy: 10.0, headingAccuracy: 5.0);
 
 
       if(userModel.isOnline){

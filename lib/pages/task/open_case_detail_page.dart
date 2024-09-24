@@ -331,11 +331,9 @@ class _OpenCaseDetailPageState extends State<OpenCaseDetailPage> {
     pattern.allMatches(text).forEach((RegExpMatch match) => print(match.group(0)));
   }
 
-  Future<AudioPlayer> _playCancelAsset() async {
-    AudioCache cache = AudioCache();
-    //At the next line, DO NOT pass the entire reference such as assets/yes.mp3. This will not work.
-    //Just pass the file name only.
-    return await cache.play("cancel_2.mp3");
+  Future _playCancelAsset() async {
+    AudioPlayer player = AudioPlayer();
+    await player.play(AssetSource("cancel_2.mp3"));
   }
 
 }

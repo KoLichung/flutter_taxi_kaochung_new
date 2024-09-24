@@ -97,6 +97,12 @@ class _MyAccountPageState extends State<MyAccountPage> {
                   Navigator.pushNamed(context, '/money_record');
                 },
               ),
+              CustomMemberPageButton(
+                title: '近期接單',
+                onPressed: (){
+                  Navigator.pushNamed(context, '/case_record');
+                },
+              ),
               // CustomMemberPageButton(
               //   title: '費率變更',
               //   onPressed: (){

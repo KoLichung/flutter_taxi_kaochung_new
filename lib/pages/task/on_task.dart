@@ -397,10 +397,10 @@ class _OnTaskState extends State<OnTask> {
                                     prefixIconConstraints: BoxConstraints(minWidth: 10, maxHeight: 20),
                                     prefixIcon: Padding(
                                       padding: EdgeInsets.fromLTRB(4,2,2,0),
-                                      child: Icon(
-                                        Icons.attach_money_rounded,
-                                        color: Colors.black,
-                                      ),
+                                      // child: Icon(
+                                      //   Icons.attach_money_rounded,
+                                      //   color: Colors.black,
+                                      // ),
                                     ),
                                     isDense: true,
                                     border: InputBorder.none,

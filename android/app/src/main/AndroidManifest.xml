@@ -1,6 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.chijia.flutter_taxi_chinghsien">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
 
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -30,7 +28,6 @@
     </queries>
 
    <application
-        tools:replace="android:label"
         android:label="24H派車"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
