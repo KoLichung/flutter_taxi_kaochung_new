@@ -5,7 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_line_sdk/flutter_line_sdk.dart';
+// import 'package:flutter_line_sdk/flutter_line_sdk.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_taxi_chinghsien/notifier_models/task_model.dart';
 import 'package:flutter_taxi_chinghsien/pages/register.dart';
@@ -61,6 +61,14 @@ class _LogInState extends State<LogIn> {
     if (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS) {
       getAPNSToken();
     }else{
+      FirebaseMessaging.instance.requestPermission(
+        announcement: true,
+        carPlay: true,
+        criticalAlert: true,
+        alert: true,
+        badge: true,
+        sound: true,
+      );
       FirebaseMessaging.instance.getToken().then((token){
         print('the token: ' + token.toString());
         var userModel = context.read<UserModel>();
@@ -359,57 +367,57 @@ class _LogInState extends State<LogIn> {
     }
   }
 
-  Future<void> _lineSignIn(BuildContext context) async {
-    try {
-      final result = await LineSDK.instance.login();
-      String lineId = result.userProfile!.userId;
-
-      //for test
-      // String lineId = 'U695107477916e4f50d84d224ca6e4763';
-      String token = await _getUserToken(lineId);
-
-      // String displayName = result.userProfile!.displayName;
-      // String email = '${lineId}@line.com';
-
-      // String token = await _getUserToken("test");
-
-      if(token != 'error'){
-        User user = await _getUserData(token);
-
-        if(user.phone!=null){
-          var userModel = context.read<UserModel>();
-          userModel.token = token;
-          userModel.setUser(user);
-
-          ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(SnackBar(content: Text('轉到首頁！')));
-
-          // Navigator.push(
-          //   context,
-          //   MaterialPageRoute(builder: (context) => const MyHomePage()));
-          Navigator.of(context).pushNamed('/main');
-        }else{
-          ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(SnackBar(content: Text('搜索不到該使用者！')));
-          Navigator.push(
-            context,
-            // MaterialPageRoute(builder: (context) =>  Register(isEdit: false, lineId: lineId))
-              MaterialPageRoute(builder: (context) =>  Register(isEdit: false,))
-
-          );
-        }
-      }else{
-        ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(SnackBar(content: Text('轉到註冊頁！')));
-        Navigator.push(
-          context,
-          // MaterialPageRoute(builder: (context) =>  Register(isEdit: false, lineId: lineId))
-            MaterialPageRoute(builder: (context) =>  Register(isEdit: false,))
-
-        );
-      }
-    } on PlatformException catch (e) {
-      print(e.toString());
-      ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(SnackBar(content: Text('未成功取得 LINE 授權！')));
-    }
-  }
+  // Future<void> _lineSignIn(BuildContext context) async {
+  //   try {
+  //     final result = await LineSDK.instance.login();
+  //     String lineId = result.userProfile!.userId;
+  //
+  //     //for test
+  //     // String lineId = 'U695107477916e4f50d84d224ca6e4763';
+  //     String token = await _getUserToken(lineId);
+  //
+  //     // String displayName = result.userProfile!.displayName;
+  //     // String email = '${lineId}@line.com';
+  //
+  //     // String token = await _getUserToken("test");
+  //
+  //     if(token != 'error'){
+  //       User user = await _getUserData(token);
+  //
+  //       if(user.phone!=null){
+  //         var userModel = context.read<UserModel>();
+  //         userModel.token = token;
+  //         userModel.setUser(user);
+  //
+  //         ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(SnackBar(content: Text('轉到首頁！')));
+  //
+  //         // Navigator.push(
+  //         //   context,
+  //         //   MaterialPageRoute(builder: (context) => const MyHomePage()));
+  //         Navigator.of(context).pushNamed('/main');
+  //       }else{
+  //         ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(SnackBar(content: Text('搜索不到該使用者！')));
+  //         Navigator.push(
+  //           context,
+  //           // MaterialPageRoute(builder: (context) =>  Register(isEdit: false, lineId: lineId))
+  //             MaterialPageRoute(builder: (context) =>  Register(isEdit: false,))
+  //
+  //         );
+  //       }
+  //     }else{
+  //       ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(SnackBar(content: Text('轉到註冊頁！')));
+  //       Navigator.push(
+  //         context,
+  //         // MaterialPageRoute(builder: (context) =>  Register(isEdit: false, lineId: lineId))
+  //           MaterialPageRoute(builder: (context) =>  Register(isEdit: false,))
+  //
+  //       );
+  //     }
+  //   } on PlatformException catch (e) {
+  //     print(e.toString());
+  //     ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(SnackBar(content: Text('未成功取得 LINE 授權！')));
+  //   }
+  // }
 
   Future<String> _getUserToken(String line_id) async {
     String path = ServerApi.PATH_USER_TOKEN;

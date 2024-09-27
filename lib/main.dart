@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_line_sdk/flutter_line_sdk.dart';
+// import 'package:flutter_line_sdk/flutter_line_sdk.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_taxi_chinghsien/pages/log_in.dart';
 import 'package:flutter_taxi_chinghsien/pages/member/case_record.dart';
@@ -83,9 +83,9 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  LineSDK.instance.setup('1657014064').then((_) {
-    print('LineSDK Prepared');
-  });
+  // LineSDK.instance.setup('1657014064').then((_) {
+  //   print('LineSDK Prepared');
+  // });
 
   // const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('ic_launcher');
   //
