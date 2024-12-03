@@ -137,16 +137,16 @@ class _RegisterState extends State<Register> {
                     )],
                 ),
                 const SizedBox(height: 20,),
-                validatorTextFormField('*真實姓名','',driverNameController, false),
-                validatorTextFormField('*Line名稱','',nickNameController, false),
-                validatorTextFormField('*手機號碼','',phoneNumberController, false),
-                validatorTextFormField('*密碼','',pwdController, true),
-                registerTextField('身份證字號','',idNumberController),
-                getDriverGender(),
+                validatorTextFormField('*真實姓名','',driverNameController, false, !widget.isEdit),
+                validatorTextFormField('*Line名稱','',nickNameController, false, !widget.isEdit),
+                validatorTextFormField('*手機號碼','',phoneNumberController, false, !widget.isEdit),
+                widget.isEdit?Container():validatorTextFormField('*密碼','',pwdController, true, true),
+                registerTextField('身份證字號','',idNumberController, !widget.isEdit),
+                getDriverGender(!widget.isEdit),
                 const SizedBox(height: 10,),
-                validatorTextFormField('*車號(ABC-1234,請填 1234)','',carPlateController, false),
-                registerTextField('顏色','白',carColorController),
-                registerTextField('座位數','4',seatNumberController),
+                validatorTextFormField('*車號(ABC-1234,請填 1234)','',carPlateController, false, !widget.isEdit),
+                registerTextField('顏色','白',carColorController, !widget.isEdit),
+                registerTextField('座位數','4',seatNumberController, !widget.isEdit),
                 // Container(
                 //   margin: const EdgeInsets.symmetric(horizontal: 15,vertical: 2),
                 //   child: Column(
@@ -181,10 +181,10 @@ class _RegisterState extends State<Register> {
                 //       ),
                 //     ],),
                 // ),
-                Container(
+                widget.isEdit? Container():Container(
                   margin: const EdgeInsets.symmetric(horizontal: 30,vertical: 20),
                   child: CustomElevatedButton(
-                    title: widget.isEdit ? '確認修改' : '確認註冊',
+                    title: '確認註冊',
                     theHeight: 46,
                     onPressed: (){
 
@@ -242,7 +242,7 @@ class _RegisterState extends State<Register> {
                         }},
                   ),
                 ),
-                widget.isEdit ? const SizedBox() : TextButton(onPressed: (){ Navigator.pop(context);}, child: const Text('返回上一頁',)),
+                widget.isEdit? const SizedBox():TextButton(onPressed: (){ Navigator.pop(context);}, child: const Text('返回上一頁',)),
                 const SizedBox(height: 250)
               ],
             ),
@@ -250,86 +250,98 @@ class _RegisterState extends State<Register> {
         ));
   }
 
-  validatorTextFormField(String title, String hintText, TextEditingController controller, bool isObscure){
+  validatorTextFormField(String title, String hintText, TextEditingController controller, bool isObscure, bool enabled) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 15,vertical: 2),
+      margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title),
           Container(
-            margin: const  EdgeInsets.symmetric(vertical: 2),
+            margin: const EdgeInsets.symmetric(vertical: 2),
             height: 62,
             child: TextFormField(
               obscureText: isObscure,
+              enabled: enabled,
+              readOnly: !enabled, // 為了讓不可編輯時仍可顯示下底線
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return '此欄必填';
                 }
                 return null;
               },
-              style: const TextStyle(fontSize: 18),
+              style: TextStyle(
+                fontSize: 18,
+                color: enabled ? Colors.black : Colors.grey, // 不可編輯時文字顏色變灰
+              ),
               controller: controller,
-              decoration: const InputDecoration(
-                focusedErrorBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.red, width: 1.0),),
-                errorBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.red, width: 1.0),),
-                errorStyle: TextStyle(
-                  height: 1,
+              decoration: InputDecoration(
+                hintText: hintText,
+                hintStyle: TextStyle(color: Colors.grey.shade400),
+                enabledBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.black54),
                 ),
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 13,vertical: 10),
-                focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.black54, width: 1,),),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.black54, width: 1,),)
+                focusedBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.black),
+                ),
+                disabledBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.black54), // 不可編輯時顯示下底線
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+              ),
             ),
           ),
-          )
-        ],),
+        ],
+      ),
     );
   }
 
-  registerTextField(String title, String hintText, TextEditingController controller){
+  registerTextField(String title, String hintText, TextEditingController controller, bool enabled) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 15,vertical: 2),
+      margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title),
           Container(
-            margin: const  EdgeInsets.symmetric(vertical: 6),
+            margin: const EdgeInsets.symmetric(vertical: 6),
             height: 46,
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: Colors.black54,
-                width: 1,),
-              borderRadius: BorderRadius.circular(4),),
             child: TextField(
-              style: const TextStyle(fontSize: 18),
+              enabled: enabled,
+              readOnly: !enabled, // 為了讓不可編輯時仍可顯示下底線
+              style: TextStyle(
+                fontSize: 18,
+                color: enabled ? Colors.black : Colors.grey, // 不可編輯時文字顏色變灰
+              ),
               controller: controller,
               decoration: InputDecoration(
                 hintText: hintText,
                 hintStyle: TextStyle(color: Colors.grey.shade400),
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 13,vertical: 10),
-                focusedBorder: InputBorder.none,
-                enabledBorder: InputBorder.none,
+                enabledBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.black54),
+                ),
+                focusedBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.black),
+                ),
+                disabledBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.black54), // 不可編輯時顯示下底線
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
               ),
             ),
           ),
-        ],),
+        ],
+      ),
     );
   }
 
-  getDriverGender(){
+  getDriverGender(bool isEditable) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 15,vertical: 2),
+      margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('性別',style: TextStyle(height: 1.8),),
+          const Text('性別', style: TextStyle(height: 1.8)),
           Row(
             children: [
               Radio<DriverGender>(
@@ -339,15 +351,22 @@ class _RegisterState extends State<Register> {
                 ),
                 value: DriverGender.male,
                 groupValue: _driverGender,
-                onChanged: (DriverGender? value){
+                onChanged: isEditable
+                    ? (DriverGender? value) {
                   setState(() {
                     _driverGender = value;
                   });
-                },
+                }
+                    : null, // 當 isEditable 為 false 時，禁用按鈕
                 activeColor: Colors.black54,
               ),
-              const Text('男'),
-              const SizedBox(width: 20,),
+              Text(
+                '男',
+                style: TextStyle(
+                  color: isEditable ? Colors.black : Colors.grey, // 顯示灰色文字
+                ),
+              ),
+              const SizedBox(width: 20),
               Radio<DriverGender>(
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 visualDensity: const VisualDensity(
@@ -355,14 +374,21 @@ class _RegisterState extends State<Register> {
                 ),
                 value: DriverGender.female,
                 groupValue: _driverGender,
-                onChanged: (DriverGender? value){
+                onChanged: isEditable
+                    ? (DriverGender? value) {
                   setState(() {
                     _driverGender = value;
                   });
-                },
+                }
+                    : null, // 當 isEditable 為 false 時，禁用按鈕
                 activeColor: Colors.black54,
               ),
-              const Text('女')
+              Text(
+                '女',
+                style: TextStyle(
+                  color: isEditable ? Colors.black : Colors.grey, // 顯示灰色文字
+                ),
+              ),
             ],
           ),
         ],

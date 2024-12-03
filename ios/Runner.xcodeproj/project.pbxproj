@@ -16,6 +16,7 @@
 		A619B73729E57311007ACA14 /* ding_dong.caf in Resources */ = {isa = PBXBuildFile; fileRef = A619B73629E564F5007ACA14 /* ding_dong.caf */; };
 		A627AA002A81EB7E00CC3CC2 /* cancel.caf in Resources */ = {isa = PBXBuildFile; fileRef = A627A9FF2A81EB7E00CC3CC2 /* cancel.caf */; };
 		A627AA022A88D66A00CC3CC2 /* cancel_2.caf in Resources */ = {isa = PBXBuildFile; fileRef = A627AA012A88D66A00CC3CC2 /* cancel_2.caf */; };
+		A66EAF682CED6EF0009AD458 /* victory.caf in Resources */ = {isa = PBXBuildFile; fileRef = A66EAF672CED6EF0009AD458 /* victory.caf */; };
 		B62662EED5D4B5760ACB1FCE /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FDFE6BB1A0BEAE4B65AD506A /* Pods_Runner.framework */; };
 /* End PBXBuildFile section */
 
@@ -53,6 +54,7 @@
 		A619B73629E564F5007ACA14 /* ding_dong.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = ding_dong.caf; sourceTree = "<group>"; };
 		A627A9FF2A81EB7E00CC3CC2 /* cancel.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = cancel.caf; sourceTree = "<group>"; };
 		A627AA012A88D66A00CC3CC2 /* cancel_2.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = cancel_2.caf; sourceTree = "<group>"; };
+		A66EAF672CED6EF0009AD458 /* victory.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = victory.caf; sourceTree = "<group>"; };
 		FDFE6BB1A0BEAE4B65AD506A /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -111,6 +113,7 @@
 		97C146F01CF9000F007C117D /* Runner */ = {
 			isa = PBXGroup;
 			children = (
+				A66EAF672CED6EF0009AD458 /* victory.caf */,
 				A627AA012A88D66A00CC3CC2 /* cancel_2.caf */,
 				A627A9FF2A81EB7E00CC3CC2 /* cancel.caf */,
 				A619B73629E564F5007ACA14 /* ding_dong.caf */,
@@ -202,6 +205,7 @@
 				97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */,
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
+				A66EAF682CED6EF0009AD458 /* victory.caf in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
 				A627AA002A81EB7E00CC3CC2 /* cancel.caf in Resources */,
 				A619B73729E57311007ACA14 /* ding_dong.caf in Resources */,
@@ -391,7 +395,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
-				CURRENT_PROJECT_VERSION = 65;
+				CURRENT_PROJECT_VERSION = 70;
 				DEVELOPMENT_TEAM = UFQ4CGRUZ2;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -400,7 +404,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.64;
+				MARKETING_VERSION = 1.0.70;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.chijia.flutter-taxi-chinghsien";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -526,7 +530,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
-				CURRENT_PROJECT_VERSION = 65;
+				CURRENT_PROJECT_VERSION = 70;
 				DEVELOPMENT_TEAM = UFQ4CGRUZ2;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -535,7 +539,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.64;
+				MARKETING_VERSION = 1.0.70;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.chijia.flutter-taxi-chinghsien";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -553,7 +557,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
-				CURRENT_PROJECT_VERSION = 65;
+				CURRENT_PROJECT_VERSION = 70;
 				DEVELOPMENT_TEAM = UFQ4CGRUZ2;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -562,7 +566,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.64;
+				MARKETING_VERSION = 1.0.70;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.chijia.flutter-taxi-chinghsien";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";

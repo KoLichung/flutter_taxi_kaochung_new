@@ -29,6 +29,7 @@ class Case {
   String? memo;
   String? timeMemo;
   String? carTeamName;
+  String? dispatcherNickName;
 
   String? feeTitle;
   int? feeStartFee;
@@ -65,6 +66,7 @@ class Case {
         this.memo,
         this.timeMemo,
         this.carTeamName,
+        this.dispatcherNickName,
         this.feeTitle,
         this.feeStartFee,
         this.feeFifteenSecondFee,
@@ -131,6 +133,11 @@ class Case {
       carTeamName = json['carTeamName'];
     }else{
       carTeamName = "";
+    }
+    if(json['dispatcher_nick_name']!=null) {
+      dispatcherNickName = json['dispatcher_nick_name'];
+    }else{
+      dispatcherNickName = "";
     }
     feeTitle = json['fee_title'];
     feeStartFee = json['fee_start_fee'];

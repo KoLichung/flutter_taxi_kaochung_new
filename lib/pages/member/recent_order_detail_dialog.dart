@@ -43,6 +43,10 @@ class _RecentOrderDetailDialogState extends State<RecentOrderDetailDialog> {
           children: [
             Text('${widget.theCase.createTime} '),
             const SizedBox(height: 10,),
+            Text('派單車隊：${widget.theCase.carTeamName} ',),
+            const SizedBox(height: 10,),
+            Text('派單人：${widget.theCase.dispatcherNickName} ',),
+            const SizedBox(height: 10,),
             Text('上車：${widget.theCase.onAddress} ',),
             const SizedBox(height: 10,),
             Text('下車：${widget.theCase.offAddress} '),

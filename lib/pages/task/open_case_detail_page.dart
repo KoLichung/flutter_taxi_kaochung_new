@@ -59,6 +59,7 @@ class _OpenCaseDetailPageState extends State<OpenCaseDetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       (theCase==null)?Text('讀取中...'):Text('${theCase!.carTeamName}'),
+                      (theCase==null)?Container():Text('派單人：${theCase!.dispatcherNickName}'),
                       Row(
                         children: [
                           const Text('上車地：'),

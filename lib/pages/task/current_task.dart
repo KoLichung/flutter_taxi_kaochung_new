@@ -88,7 +88,7 @@ class _CurrentTaskState extends State<CurrentTask> {
       setState(() {});
     });
 
-    _fetchTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+    _fetchTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
       _fetchCaseState(userToken!, theCase.id!);
     });
   }
@@ -145,7 +145,7 @@ class _CurrentTaskState extends State<CurrentTask> {
                                 ),
                               ),
                               (taskModel.cases.isNotEmpty)?
-                              Text('${taskModel.cases.first.carTeamName}')
+                              Text('${taskModel.cases.first.carTeamName}：${taskModel.cases.first.dispatcherNickName}')
                               :
                               Container(),
                             ],

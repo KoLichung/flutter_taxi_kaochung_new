@@ -250,9 +250,11 @@ class _HomePageState extends State<HomePage> {
               }else{
                 // print('in penalty or no money');
                 ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('處罰中 或 需充值~無法上線~')));
+                _isOnlining = false;
               }
             }else{
               ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('未通過審核！')));
+              _isOnlining = false;
             }
 
           }
@@ -313,6 +315,7 @@ class _HomePageState extends State<HomePage> {
                     // Text('空派任務：${myCases[i].shipState!}'),
                     Center(child: Text('倒數：$_taskWaitingTime 秒')),
                     Text('${myCases[i].carTeamName}'),
+                    Text('派單人：${myCases[i].dispatcherNickName}'),
                     Row(children: [
                       Container(
                         margin:const EdgeInsets.fromLTRB(0,4,8,0),
@@ -411,7 +414,7 @@ class _HomePageState extends State<HomePage> {
 
   Future _playLocalAsset() async {
     AudioPlayer player = AudioPlayer();
-    await player.play(AssetSource("ding_dong.mp3"));
+    await player.play(AssetSource("victory.mp3"));
   }
 
   Future _playCancelAsset() async {
@@ -578,6 +581,7 @@ class _HomePageState extends State<HomePage> {
 
       userModel.user!.leftMoney = map["left_money"];
       userModel.user!.violation_time = map["violation_time"];
+      userModel.user!.isPassed = map["is_passed"];
 
       if (map["penalty_datetime"] != null){
         userModel.user!.penalty_datetime = DateTime.parse(map["penalty_datetime"]);
@@ -587,7 +591,10 @@ class _HomePageState extends State<HomePage> {
       }
 
       // 如果 left money < 0, 自動下線
-      if(map["left_money"]<= 0 || userModel.user!.violation_time == 5){
+      if(map["is_passed"] == false){
+        actionOffline();
+        ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('您的審核資格未通過！')));
+      }else if(map["left_money"]<= 0 || userModel.user!.violation_time == 5){
         actionOffline();
         ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('您的儲值金額小於0元！')));
       }else{

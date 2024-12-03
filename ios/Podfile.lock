@@ -44,9 +44,6 @@ PODS:
   - flutter_background_geolocation (4.16.0):
     - CocoaLumberjack (~> 3.8.5)
     - Flutter
-  - flutter_line_sdk (2.3.8):
-    - Flutter
-    - LineSDKSwift (~> 5.3)
   - flutter_local_notifications (0.0.1):
     - Flutter
   - geolocator_apple (1.2.0):
@@ -78,9 +75,6 @@ PODS:
   - GoogleUtilities/UserDefaults (8.0.2):
     - GoogleUtilities/Logger
     - GoogleUtilities/Privacy
-  - LineSDKSwift (5.11.1):
-    - LineSDKSwift/Core (= 5.11.1)
-  - LineSDKSwift/Core (5.11.1)
   - map_launcher (0.0.1):
     - Flutter
   - maps_launcher (0.0.1):
@@ -110,7 +104,6 @@ DEPENDENCIES:
   - firebase_messaging (from `.symlinks/plugins/firebase_messaging/ios`)
   - Flutter (from `Flutter`)
   - flutter_background_geolocation (from `.symlinks/plugins/flutter_background_geolocation/ios`)
-  - flutter_line_sdk (from `.symlinks/plugins/flutter_line_sdk/ios`)
   - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
   - geolocator_apple (from `.symlinks/plugins/geolocator_apple/ios`)
   - map_launcher (from `.symlinks/plugins/map_launcher/ios`)
@@ -130,7 +123,6 @@ SPEC REPOS:
     - FirebaseMessaging
     - GoogleDataTransport
     - GoogleUtilities
-    - LineSDKSwift
     - nanopb
     - PromisesObjC
 
@@ -149,8 +141,6 @@ EXTERNAL SOURCES:
     :path: Flutter
   flutter_background_geolocation:
     :path: ".symlinks/plugins/flutter_background_geolocation/ios"
-  flutter_line_sdk:
-    :path: ".symlinks/plugins/flutter_line_sdk/ios"
   flutter_local_notifications:
     :path: ".symlinks/plugins/flutter_local_notifications/ios"
   geolocator_apple:
@@ -182,12 +172,10 @@ SPEC CHECKSUMS:
   FirebaseMessaging: d2d1d9c62c46dd2db49a952f7deb5b16ad2c9742
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   flutter_background_geolocation: bdff621611f4cb0e060ce10dc9678f05cf3d8d31
-  flutter_line_sdk: 266c756b2223ca2645a7c302f8c4101e3e2b8e12
   flutter_local_notifications: 4cde75091f6327eb8517fa068a0a5950212d2086
   geolocator_apple: 6cbaf322953988e009e5ecb481f07efece75c450
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 26a3abef001b6533cf678d3eb38fd3f614b7872d
-  LineSDKSwift: a3396147600cd9f2548fea88f31f49d928384bcb
   map_launcher: 5fde49ac9a52672bf99da746599f507b4490d7b5
   maps_launcher: 2e5b6a2d664ec6c27f82ffa81b74228d770ab203
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275

@@ -160,8 +160,11 @@ class _CaseRecordState extends State<CaseRecord> {
           },
         );
 
+        _printLongString(response.body);
+
         List body = json.decode(utf8.decode(response.body.runes.toList()));
         userCases = body.map((value) => Case.fromJson(value)).toList();
+
         _caseDataGridSource = CaseDataGridSource(cases: userCases);
         setState(() {});
 
@@ -172,6 +175,11 @@ class _CaseRecordState extends State<CaseRecord> {
     }else{
       Navigator.popUntil(context, (Route<dynamic> route) => route.isFirst);
     }
+  }
+
+  void _printLongString(String text) {
+    final RegExp pattern = RegExp('.{1,800}'); // 800 is the size of each chunk
+    pattern.allMatches(text).forEach((RegExpMatch match) => print(match.group(0)));
   }
 
 }
