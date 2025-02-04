@@ -228,7 +228,7 @@ class _CurrentTaskState extends State<CurrentTask> {
                                       }catch(e){
                                         print(e);
                                       }
-                                      MapsLauncher.launchQuery(taskModel.cases.first.onAddress!);
+                                      // MapsLauncher.launchQuery(taskModel.cases.first.onAddress!);
                                     }):Container()
                               ],
                             ),

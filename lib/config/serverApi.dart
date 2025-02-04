@@ -1,6 +1,6 @@
 class ServerApi{
-  // static const _HOST ='localhost:8000';
-  // static const _HOST = 'itaxi.ngrok.app';
+  // static const _HOST ='127.0.0.1:8000';
+  // static const _HOST = '8364-2402-7500-95e-7aa0-c1e8-2f8c-55ca-3652.ngrok-free.app';
 
   static const _HOST ='app.24hcartaiwan.com';
 
