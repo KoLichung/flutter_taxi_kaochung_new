@@ -181,7 +181,7 @@ class _OnTaskState extends State<OnTask> {
         var taskModel = context.read<TaskModel>();
 
         Future.microtask(() {
-          taskModel.setCurrentTaskPrice(widget.theCase.carTeamId!);
+          taskModel.setCurrentTaskPrice(widget.theCase.carTeamId!, widget.theCase.isUseProcessedTaskMoney!);
         });
       });
   }

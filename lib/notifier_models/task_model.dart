@@ -38,7 +38,7 @@ class TaskModel extends ChangeNotifier {
     return secondTotal;
   }
 
-  Future<void> setCurrentTaskPrice(int dispatchCarTeamId) async {
+  Future<void> setCurrentTaskPrice(int dispatchCarTeamId, bool isUseProcessTaskMoney) async {
 
     int secondTotal = 0;
 
@@ -75,6 +75,11 @@ class TaskModel extends ChangeNotifier {
     currentTaskPrice = currentTaskPrice +  times * fifteenSecondFee;
 
     currentTaskPrice = adjustTaskPrice(currentTaskPrice, dispatchCarTeamId);
+
+    if(currentTaskPrice<100 && isUseProcessTaskMoney){
+      currentTaskPrice = 100;
+    }
+
     // print('current velocity $currentVelocity');
     // print('total distance $totalDistance');
     // print('startTime $startTime');

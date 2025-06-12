@@ -39,6 +39,9 @@ class Case {
   int? userExpectSecond;
   bool? isNextCase;
 
+  bool? isUseProcessedTaskMoney;
+
+
   Case(
       {this.id,
         this.carTeamId,
@@ -73,6 +76,7 @@ class Case {
         this.feeTwoHundredMeterFee,
         this.userExpectSecond,
         this.isNextCase,
+        this.isUseProcessedTaskMoney,
       });
 
   Case.fromJson(Map<String, dynamic> json) {
@@ -149,6 +153,7 @@ class Case {
       userExpectSecond = 0;
     }
     isNextCase = json['is_next_case'];
+    isUseProcessedTaskMoney = json['is_use_processed_task_money'];
   }
 
   Map<String, dynamic> toJson() {
