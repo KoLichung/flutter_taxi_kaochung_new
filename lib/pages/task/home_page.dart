@@ -154,9 +154,9 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
           bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(130.0),
+              preferredSize: const Size.fromHeight(150.0),
               child: Container(
-                height: 130,
+                height: 150,
                 decoration: BoxDecoration(
                     color: Colors.white,
                     border: Border(
@@ -177,6 +177,16 @@ class _HomePageState extends State<HomePage> {
                             const Text('目前餘額：'),
                             Text(userModel.user!.leftMoney.toString()),
                           ],
+                        ),
+                        // 顯示當前位置
+                        Container(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          child: Text(
+                            userModel.currentPosition != null 
+                                ? '目前位置：(${userModel.currentPosition!.latitude.toStringAsFixed(5)}, ${userModel.currentPosition!.longitude.toStringAsFixed(5)})'
+                                : '目前位置：尚未取得位置',
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
                         ),
                         (userModel.user!.violation_time!<5)?
                         Text('違規次數：${userModel.user!.violation_time!}',style: TextStyle(color: Colors.redAccent),)

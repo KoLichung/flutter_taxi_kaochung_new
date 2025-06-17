@@ -25,6 +25,8 @@ import '../../widgets/custom_small_elevated_button.dart';
 import 'current_task.dart';
 import 'on_task_passenger_off_dialog.dart';
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
+import '../../services/route_export_service.dart';
+import '../../config/aws_config.dart';
 
 class OnTask extends StatefulWidget {
 
@@ -638,6 +640,26 @@ class _OnTaskState extends State<OnTask> {
       if(map['message']=='ok'){
         var taskModel = context.read<TaskModel>();
         var userModel = context.read<UserModel>();
+        
+        // 在重置任務前匯出路線記錄
+        print('[OnTask] 開始匯出路線記錄...');
+        try {
+          final success = await RouteExportService.exportAndUploadRoute(
+            caseId: caseId,
+            userId: userModel.user!.id.toString(),
+            startTime: taskModel.startTime,
+            endTime: DateTime.now(),
+          );
+          
+          if (success) {
+            print('[OnTask] 路線記錄上傳成功');
+          } else {
+            print('[OnTask] 路線記錄上傳失敗');
+          }
+        } catch (e) {
+          print('[OnTask] 路線記錄上傳錯誤: $e');
+        }
+        
         taskModel.resetTask();
         print('here on task finish');
         // print(taskModel.cases);

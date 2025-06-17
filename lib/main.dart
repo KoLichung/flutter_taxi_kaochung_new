@@ -17,6 +17,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 import 'package:http/http.dart' as http;
+import 'services/route_export_service.dart';
 
 import 'color.dart';
 import 'config/serverApi.dart';
@@ -276,7 +277,6 @@ class _MyHomePageState extends State<MyHomePage> {
       var userModel = context.read<UserModel>();
       userModel.currentPosition = Position(longitude: location.coords.longitude, latitude: location.coords.latitude, timestamp: DateTime.now(), accuracy: location.coords.accuracy, altitude: location.coords.altitude, heading: location.coords.heading, speed: location.coords.speed, speedAccuracy: location.coords.accuracy, altitudeAccuracy: 10.0, headingAccuracy: 5.0);
 
-
       if(userModel.isOnline){
         _fetchUpdateLatLng(userModel.token!, userModel.currentPosition!.latitude, userModel.currentPosition!.longitude);
       }
@@ -284,6 +284,18 @@ class _MyHomePageState extends State<MyHomePage> {
       var taskModel = context.read<TaskModel>();
       if(taskModel.isOnTask){
         taskModel.totalDistance = location.odometer/1000.0;
+        
+        // 如果正在執行任務，保存位置記錄到本地資料庫
+        try {
+          int? caseId = taskModel.cases.isNotEmpty ? taskModel.cases.first.id : null;
+          RouteExportService.saveLocation(
+            location,
+            caseId: caseId,
+            userId: userModel.user?.id.toString(),
+          );
+        } catch (e) {
+          print('[location] 保存位置記錄錯誤: $e');
+        }
       }
     });
 
