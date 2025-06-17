@@ -42,3 +42,16 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# AWS Security - 防止意外提交敏感憑證
+# 如果您在 aws_config.dart 中填入了實際憑證，請將該文件添加到此處
+# lib/config/aws_config.dart
+
+# 環境變數文件
+.env
+.env.local
+.env.production
+
+# AWS 憑證文件
+aws-credentials.json
+credentials.json
