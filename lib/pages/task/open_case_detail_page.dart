@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:audioplayers/audioplayers.dart';
+import '../../utils/json_utils.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_taxi_chinghsien/widgets/custom_small_elevated_button.dart';
 import 'package:http/http.dart' as http;
@@ -248,7 +249,7 @@ class _OpenCaseDetailPageState extends State<OpenCaseDetailPage> {
 
       // print(response.body);
 
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+      Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
       theCase = Case.fromJson(map);
       print('case state ${theCase?.caseState}');
       if(theCase?.caseState != 'open_case'){
@@ -285,7 +286,7 @@ class _OpenCaseDetailPageState extends State<OpenCaseDetailPage> {
 
       _printLongString(response.body);
 
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+      Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
 
       if(map['message']=='ok'){
         var taskModel = context.read<TaskModel>();

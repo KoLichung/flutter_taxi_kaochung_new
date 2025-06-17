@@ -25,6 +25,11 @@ import 'firebase_options.dart';
 import 'notifier_models/task_model.dart';
 import 'notifier_models/user_model.dart';
 
+import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
+import 'package:amplify_storage_s3/amplify_storage_s3.dart';
+import 'config/amplifyconfiguration.dart';
+
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // If you're going to use other Firebase services in the background, such as Firestore,
   // make sure you call `initializeApp` before using other Firebase services.
@@ -83,6 +88,18 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  try {
+    await _configureAmplify();
+    print('Amplify configured successfully');
+  } on AmplifyAlreadyConfiguredException {
+    print("Amplify was already configured. Was this a hot restart?");
+  } catch (e) {
+    print("An error occurred configuring Amplify: $e");
+  }
+
+  // 初始化資料庫，這將會觸發 onCreate 或 onUpgrade
+  await RouteExportService.database;
 
   // LineSDK.instance.setup('1657014064').then((_) {
   //   print('LineSDK Prepared');
@@ -194,6 +211,23 @@ Future<void> main() async {
   ));
 }
 
+Future<void> _configureAmplify() async {
+  try {
+    // Create auth and storage plugins.
+    final auth = AmplifyAuthCognito();
+    final storage = AmplifyStorageS3();
+
+    // Add plugins to Amplify.
+    await Amplify.addPlugins([auth, storage]);
+
+    // Configure Amplify.
+    await Amplify.configure(amplifyconfig);
+  } catch (e) {
+    print("An error occurred configuring Amplify: $e");
+    rethrow;
+  }
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
@@ -287,12 +321,14 @@ class _MyHomePageState extends State<MyHomePage> {
         
         // 如果正在執行任務，保存位置記錄到本地資料庫
         try {
-          int? caseId = taskModel.cases.isNotEmpty ? taskModel.cases.first.id : null;
-          RouteExportService.saveLocation(
-            location,
-            caseId: caseId,
-            userId: userModel.user?.id.toString(),
-          );
+          // 只在有案件時才記錄
+          if (taskModel.cases.isNotEmpty) {
+            int? caseId = taskModel.cases.first.id;
+            RouteExportService.saveLocationFromBg(
+              location,
+              caseId: caseId,
+            );
+          }
         } catch (e) {
           print('[location] 保存位置記錄錯誤: $e');
         }

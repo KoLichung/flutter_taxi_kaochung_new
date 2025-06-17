@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import '../../utils/json_utils.dart';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_taxi_chinghsien/models/user.dart';
@@ -26,7 +27,7 @@ import 'current_task.dart';
 import 'on_task_passenger_off_dialog.dart';
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 import '../../services/route_export_service.dart';
-import '../../config/aws_config.dart';
+
 
 class OnTask extends StatefulWidget {
 
@@ -152,21 +153,41 @@ class _OnTaskState extends State<OnTask> {
   }
 
   Future<void> _startTaskTimer() async {
-    // final prefs = await SharedPreferences.getInstance();
-    // await prefs.setBool('isOnTask', true);
     var taskModel = context.read<TaskModel>();
+    var userModel = context.read<UserModel>();
     taskModel.startTime ??= DateTime.now();
 
-    sleep(const Duration(seconds: 2));
+    // sleep(const Duration(seconds: 2));
 
     print('task model isOnTask ${taskModel.isOnTask}');
-    if (taskModel.isOnTask==false) {
+    if (taskModel.isOnTask == false) {
       Future.microtask(() {
         ScaffoldMessenger.of(context)
           ..removeCurrentSnackBar()
           ..showSnackBar(const SnackBar(content: Text('開始計算路程！')));
       });
       taskModel.isOnTask = true;
+
+      // (Requirement 3) 保存第一筆位置數據
+      try {
+        final position = userModel.currentPosition;
+        print('[OnTask] 獲取初始位置: $position');
+
+        if (position != null) {
+          await RouteExportService.saveInitialLocation(
+            latitude: position.latitude,
+            longitude: position.longitude,
+            caseId: widget.theCase.id,
+          );
+          print(
+              '[OnTask] 已保存初始位置: (${position.latitude}, ${position.longitude}) for case ID: ${widget.theCase.id}');
+        } else {
+          print('[OnTask] 警告：無法獲取初始位置來保存');
+        }
+      } catch (e) {
+        print('[OnTask] 保存初始位置時發生錯誤: $e');
+      }
+
       bg.BackgroundGeolocation.setOdometer(0.0).catchError((error) {
         print('********** [resetOdometer] ERROR: $error');
         Future.microtask(() {
@@ -196,6 +217,16 @@ class _OnTaskState extends State<OnTask> {
       print('cancel onTask timer');
       _taskTimer!.cancel();
       _taskTimer = null;
+    }
+    if(_fetchTimer!=null){
+      print('cancel fetch timer');
+      _fetchTimer!.cancel();
+      _fetchTimer = null;
+    }
+    if(_buttonTimer!=null){
+      print('cancel button timer');
+      _buttonTimer!.cancel();
+      _buttonTimer = null;
     }
   }
 
@@ -549,7 +580,7 @@ class _OnTaskState extends State<OnTask> {
 
       print(response.body);
 
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+      Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
       if(map['message']=='ok'){
         ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('已告知派單總機，請乘客趕快上車！')));
         _resetButtonTimer();
@@ -589,7 +620,7 @@ class _OnTaskState extends State<OnTask> {
 
       print(response.body);
 
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+      Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
       if(map['message']=='ok'){
         // setState(() {});
         setState(() {
@@ -636,7 +667,7 @@ class _OnTaskState extends State<OnTask> {
 
       _printLongString(response.body);
 
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+      Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
       if(map['message']=='ok'){
         var taskModel = context.read<TaskModel>();
         var userModel = context.read<UserModel>();
@@ -644,17 +675,18 @@ class _OnTaskState extends State<OnTask> {
         // 在重置任務前匯出路線記錄
         print('[OnTask] 開始匯出路線記錄...');
         try {
-          final success = await RouteExportService.exportAndUploadRoute(
-            caseId: caseId,
-            userId: userModel.user!.id.toString(),
-            startTime: taskModel.startTime,
-            endTime: DateTime.now(),
-          );
-          
-          if (success) {
-            print('[OnTask] 路線記錄上傳成功');
+          if (widget.theCase.id != null && userModel.user?.id != null) {
+            final success = await RouteExportService.exportAndUploadRoute(
+              caseId: widget.theCase.id!,
+              userId: userModel.user!.id.toString(),
+            );
+            if (success) {
+              print('[OnTask] 路線記錄上傳成功');
+            } else {
+              print('[OnTask] 路線記錄上傳失敗');
+            }
           } else {
-            print('[OnTask] 路線記錄上傳失敗');
+             print('[OnTask] 案件ID或用戶ID為空，無法匯出路線');
           }
         } catch (e) {
           print('[OnTask] 路線記錄上傳錯誤: $e');
@@ -662,16 +694,7 @@ class _OnTaskState extends State<OnTask> {
         
         taskModel.resetTask();
         print('here on task finish');
-        // print(taskModel.cases);
-        if(_taskTimer!=null){
-          print('cancel onTask timer');
-          _taskTimer!.cancel();
-          _taskTimer = null;
-        }
-        if(_fetchTimer!=null){
-          _fetchTimer!.cancel();
-          _fetchTimer = null;
-        }
+        taskModel.isOnTask = false;
 
         userModel.user!.leftMoney = map["after_left_money"];
 
@@ -721,7 +744,7 @@ class _OnTaskState extends State<OnTask> {
 
       _printLongString(response.body);
 
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+      Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
 
       String currentCaseState = map['current_case_state'];
       print('current case state $currentCaseState');
@@ -966,7 +989,7 @@ class _MyDialogState extends State<MyDialog> {
 
       // _printLongString(response.body);
 
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+      Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
 
       if(map['message']=='ok'){
         _timer.cancel();
@@ -1005,7 +1028,7 @@ class _MyDialogState extends State<MyDialog> {
 
       _printLongString(response.body);
 
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+      Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
 
       if(map['message']=='ok'){
         _timer.cancel();

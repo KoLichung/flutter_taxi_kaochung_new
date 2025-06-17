@@ -25,6 +25,7 @@ import 'on_task.dart';
 
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 import 'package:http/http.dart' as http;
+import '../../utils/json_utils.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -584,7 +585,7 @@ class _HomePageState extends State<HomePage> {
       // print(response.body);
       _printLongString(response.body);
 
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+      Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
       List body = map["cases"];
 
       var userModel = context.read<UserModel>();
@@ -763,7 +764,7 @@ class _HomePageState extends State<HomePage> {
 
       _printLongString(response.body);
 
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+      Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
 
       if(map['message']=='ok'){
         if(_timer!=null){
@@ -872,7 +873,7 @@ class _HomePageState extends State<HomePage> {
 
       _printLongString(response.body);
 
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+      Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
 
       if(map['message']=='ok'){
         if(_taskTimer!=null) {
@@ -917,7 +918,7 @@ class _HomePageState extends State<HomePage> {
 
       _isOnlining = false;
 
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+      Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
       if(map['message']=='ok'){
         print("success update online state!");
         if(isOnline){
@@ -1039,7 +1040,7 @@ class _HomePageState extends State<HomePage> {
     try {
       final response = await http.get(ServerApi.standard(path: path));
       if (response.statusCode == 200){
-        Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+        Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
 
         var userModel = context.read<UserModel>();
         if(userModel.platformType!=null && userModel.currentAppVersion != null){

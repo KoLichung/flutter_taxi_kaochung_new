@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:core';
+import '../../utils/json_utils.dart';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -162,7 +163,7 @@ class _CaseRecordState extends State<CaseRecord> {
 
         _printLongString(response.body);
 
-        List body = json.decode(utf8.decode(response.body.runes.toList()));
+        List body = JsonUtils.safeJsonDecode(response);
         userCases = body.map((value) => Case.fromJson(value)).toList();
 
         _caseDataGridSource = CaseDataGridSource(cases: userCases);

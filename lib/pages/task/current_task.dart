@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import '../../utils/json_utils.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_taxi_chinghsien/notifier_models/task_model.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/current_task_report_dialog.dart';
@@ -339,7 +340,7 @@ class _CurrentTaskState extends State<CurrentTask> {
 
       print(response.body);
 
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+      Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
       if(map['message']=='ok'){
         if(_fetchTimer!=null){
           _fetchTimer!.cancel();
@@ -378,7 +379,7 @@ class _CurrentTaskState extends State<CurrentTask> {
 
       // print(response.body);
 
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+      Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
       Case currentCase = Case.fromJson(map);
       print('case state ${currentCase.caseState}');
       if(currentCase.caseState=='canceled'){

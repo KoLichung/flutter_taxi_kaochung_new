@@ -115,7 +115,13 @@ class _LogInState extends State<LogIn> {
       userModel.token = token;
 
       User? user = await _getUserData(token);
-      userModel.setUser(user);
+      if (user != null && user.id != null) {
+        userModel.setUser(user);
+      } else {
+        print('取得用戶資料失敗，清除 token');
+        _deleteUserToken();
+        return; // 不導航到主頁面，留在登入頁面
+      }
 
       final prefs = await SharedPreferences.getInstance();
       if (prefs.getBool('isOnline') != null){
@@ -336,17 +342,18 @@ class _LogInState extends State<LogIn> {
         userModel.token = token;
         User? user = await _getUserData(token);
 
-        print(user.name);
-
-        userModel.setUser(user!);
-
-        // Navigator.push(
-        //     context,
-        //     MaterialPageRoute(
-        //       builder: (context) => const HomePage(),
-        //     ));
-
-        Navigator.of(context).pushNamed('/main');
+        if (user != null && user.id != null) {
+          print('登入成功，用戶: ${user.name}');
+          userModel.setUser(user);
+          Navigator.of(context).pushNamed('/main');
+        } else {
+          print('取得用戶資料失敗');
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("取得用戶資料失敗，請重新登入"),
+              )
+          );
+        }
         // Navigator.pop(context, 'ok');
       }else{
         print(response.body);
@@ -450,7 +457,7 @@ class _LogInState extends State<LogIn> {
     }
   }
 
-  Future<User> _getUserData(String token) async {
+  Future<User?> _getUserData(String token) async {
     isLoading = true;
     setState(() {});
 
@@ -466,9 +473,14 @@ class _LogInState extends State<LogIn> {
 
       _printLongString(response.body);
 
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
-      // String phone = map['email'];
-      // String name = map['name'];
+      // 嘗試直接解析 response.body，如果失敗再嘗試 UTF-8 解碼
+      Map<String, dynamic> map;
+      try {
+        map = json.decode(response.body);
+      } catch (e) {
+        print('直接解析失敗，嘗試 UTF-8 解碼: $e');
+        map = json.decode(utf8.decode(response.body.runes.toList()));
+      }
 
       User theUser = User.fromJson(map);
 
@@ -481,7 +493,7 @@ class _LogInState extends State<LogIn> {
 
       return theUser;
     } catch (e) {
-      print(e);
+      print('_getUserData 錯誤: $e');
 
       //token過期, 需重新登入
       _deleteUserToken();
@@ -489,7 +501,7 @@ class _LogInState extends State<LogIn> {
       isLoading = false;
       setState(() {});
 
-      return User();
+      return null;
     }
   }
 

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../utils/json_utils.dart';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -154,7 +155,7 @@ class _NewPassengerDialogState extends State<NewPassengerDialog> {
         },
       );
 
-      List body = json.decode(utf8.decode(response.body.runes.toList()));
+      List body = JsonUtils.safeJsonDecode(response);
       List<Case> cases = body.map((value) => Case.fromJson(value)).toList();
       if(cases.isNotEmpty){
         theCase = cases.first;
@@ -187,7 +188,7 @@ class _NewPassengerDialogState extends State<NewPassengerDialog> {
       );
 
       // print(response.body);
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+      Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
       if(map['message']=='ok'){
         ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('成功接單！')));
         return "ok";

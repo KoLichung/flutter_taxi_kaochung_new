@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import '../../utils/json_utils.dart';
 
 import 'package:flutter_taxi_chinghsien/main.dart';
 import 'package:flutter_taxi_chinghsien/notifier_models/task_model.dart';
@@ -137,7 +138,7 @@ class _OpenCasePageState extends State<OpenCasePage> {
 
       // print(response.body);
 
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+      Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
       List body = map["cases"];
 
       userModel.user!.leftMoney = map["left_money"];
@@ -191,7 +192,7 @@ class _OpenCasePageState extends State<OpenCasePage> {
       // List<dynamic> parsedListJson = json.decode(utf8.decode(response.body.runes.toList()));
       // openCases = List<Case>.from(parsedListJson.map((i) => Case.fromJson(i)));
 
-      Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
+      Map<String, dynamic> map = JsonUtils.safeJsonDecode(response);
       List body = map["cases"];
 
       var userModel = context.read<UserModel>();
