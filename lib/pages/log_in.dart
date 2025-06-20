@@ -116,7 +116,7 @@ class _LogInState extends State<LogIn> {
 
       User? user = await _getUserData(token);
       if (user != null && user.id != null) {
-        userModel.setUser(user);
+      userModel.setUser(user);
       } else {
         print('取得用戶資料失敗，清除 token');
         _deleteUserToken();
@@ -345,7 +345,7 @@ class _LogInState extends State<LogIn> {
         if (user != null && user.id != null) {
           print('登入成功，用戶: ${user.name}');
           userModel.setUser(user);
-          Navigator.of(context).pushNamed('/main');
+        Navigator.of(context).pushNamed('/main');
         } else {
           print('取得用戶資料失敗');
           ScaffoldMessenger.of(context).showSnackBar(
