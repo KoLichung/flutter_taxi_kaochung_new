@@ -42,3 +42,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# AWS Configuration files
+lib/config/amplifyconfiguration.dart
+lib/config/aws_config.dart
