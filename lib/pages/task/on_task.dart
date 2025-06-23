@@ -25,6 +25,7 @@ import '../../widgets/custom_small_elevated_button.dart';
 import 'current_task.dart';
 import 'on_task_passenger_off_dialog.dart';
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
+import '../../services/route_export_service.dart';
 
 class OnTask extends StatefulWidget {
 
@@ -165,6 +166,28 @@ class _OnTaskState extends State<OnTask> {
           ..showSnackBar(const SnackBar(content: Text('開始計算路程！')));
       });
       taskModel.isOnTask = true;
+
+      // 保存第一筆位置數據
+      try {
+        var userModel = context.read<UserModel>();
+        final position = userModel.currentPosition;
+        print('[OnTask] 獲取初始位置: $position');
+
+        if (position != null) {
+          await RouteExportService.saveInitialLocation(
+            latitude: position.latitude,
+            longitude: position.longitude,
+            caseId: widget.theCase.id,
+          );
+          print(
+              '[OnTask] 已保存初始位置: (${position.latitude}, ${position.longitude}) for case ID: ${widget.theCase.id}');
+        } else {
+          print('[OnTask] 警告：無法獲取初始位置來保存');
+        }
+      } catch (e) {
+        print('[OnTask] 保存初始位置時發生錯誤: $e');
+      }
+
       bg.BackgroundGeolocation.setOdometer(0.0).catchError((error) {
         print('********** [resetOdometer] ERROR: $error');
         Future.microtask(() {
@@ -638,6 +661,27 @@ class _OnTaskState extends State<OnTask> {
       if(map['message']=='ok'){
         var taskModel = context.read<TaskModel>();
         var userModel = context.read<UserModel>();
+        
+        // 在重置任務前匯出路線記錄
+        print('[OnTask] 開始匯出路線記錄...');
+        try {
+          if (widget.theCase.id != null && userModel.user?.id != null) {
+            final success = await RouteExportService.exportAndUploadRoute(
+              caseId: widget.theCase.id!,
+              userId: userModel.user!.id.toString(),
+            );
+            if (success) {
+              print('[OnTask] 路線記錄上傳成功');
+            } else {
+              print('[OnTask] 路線記錄上傳失敗');
+            }
+          } else {
+             print('[OnTask] 案件ID或用戶ID為空，無法匯出路線');
+          }
+        } catch (e) {
+          print('[OnTask] 路線記錄上傳錯誤: $e');
+        }
+        
         taskModel.resetTask();
         print('here on task finish');
         // print(taskModel.cases);
