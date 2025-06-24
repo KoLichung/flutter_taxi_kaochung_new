@@ -8,6 +8,7 @@ import 'package:flutter_taxi_chinghsien/pages/task/cancel_dialog.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/disclosure_dialog.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -181,11 +182,22 @@ class _HomePageState extends State<HomePage> {
                         // 顯示當前位置
                         Container(
                           margin: const EdgeInsets.symmetric(vertical: 4),
-                          child: Text(
-                            userModel.currentPosition != null 
-                                ? '目前位置：(${userModel.currentPosition!.latitude.toStringAsFixed(5)}, ${userModel.currentPosition!.longitude.toStringAsFixed(5)})'
-                                : '目前位置：尚未取得位置',
-                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          child: GestureDetector(
+                            onTap: userModel.currentPosition != null ? () async {
+                              final locationText = '${userModel.currentPosition!.latitude.toStringAsFixed(5)}, ${userModel.currentPosition!.longitude.toStringAsFixed(5)}';
+                              await Clipboard.setData(ClipboardData(text: locationText));
+                              ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('已複製到剪貼簿')));
+                            } : null,
+                            child: Text(
+                              userModel.currentPosition != null 
+                                  ? '目前位置：(${userModel.currentPosition!.latitude.toStringAsFixed(5)}, ${userModel.currentPosition!.longitude.toStringAsFixed(5)})'
+                                  : '目前位置：尚未取得位置',
+                              style: TextStyle(
+                                fontSize: 12, 
+                                color: userModel.currentPosition != null ? Colors.blue : Colors.grey,
+                                decoration: userModel.currentPosition != null ? TextDecoration.underline : null,
+                              ),
+                            ),
                           ),
                         ),
                         (userModel.user!.violation_time!<5)?
