@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:ui';
+import 'dart:convert';
 
+import 'package:background_fetch/background_fetch.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -29,6 +31,60 @@ import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'package:amplify_storage_s3/amplify_storage_s3.dart';
 import 'config/amplifyconfiguration.dart';
+
+// 存儲最新位置資訊
+double? latestLatitude;
+double? latestLongitude;
+String? latestToken;
+
+// [Android-only] Headless task for background location updates
+void backgroundFetchHeadlessTask(HeadlessTask task) async {
+  String taskId = task.taskId;
+  bool isTimeout = task.timeout;
+  
+  if (isTimeout) {
+    print("[BackgroundFetch] Headless task timed-out: $taskId");
+    BackgroundFetch.finish(taskId);
+    return;
+  }
+  
+  print('[BackgroundFetch] Headless event received for location update');
+  
+  // 處理最新位置更新
+  if (latestLatitude != null && latestLongitude != null && latestToken != null) {
+    await _fetchUpdateLatLngBackground(latestToken!, latestLatitude!, latestLongitude!);
+  }
+  
+  BackgroundFetch.finish(taskId);
+}
+
+// 背景位置更新函數
+Future<void> _fetchUpdateLatLngBackground(String token, double lat, double lng) async {
+  String path = ServerApi.PATH_UPDATE_LAT_LNG;
+  final queryParameters = {
+    'lat': lat.toString(),
+    'lng': lng.toString(),
+  };
+
+  try {
+    final response = await http.get(
+      ServerApi.standard(path: path, queryParameters: queryParameters),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'token $token'
+      },
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      print('[BackgroundFetch] Location update success: $lat, $lng');
+    } else {
+      print('[BackgroundFetch] Location update failed: ${response.statusCode}');
+    }
+
+  } catch (e) {
+    print('[BackgroundFetch] Location update error: $e');
+  }
+}
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // If you're going to use other Firebase services in the background, such as Firestore,
@@ -198,6 +254,9 @@ Future<void> main() async {
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
+  // Register background fetch headless task
+  BackgroundFetch.registerHeadlessTask(backgroundFetchHeadlessTask);
+
   runApp(MultiProvider(
     providers: [
       ChangeNotifierProvider(
@@ -311,9 +370,14 @@ class _MyHomePageState extends State<MyHomePage> {
       var userModel = context.read<UserModel>();
       userModel.currentPosition = Position(longitude: location.coords.longitude, latitude: location.coords.latitude, timestamp: DateTime.now(), accuracy: location.coords.accuracy, altitude: location.coords.altitude, heading: location.coords.heading, speed: location.coords.speed, speedAccuracy: location.coords.accuracy, altitudeAccuracy: 10.0, headingAccuracy: 5.0);
 
-
-      if(userModel.isOnline){
-        _fetchUpdateLatLng(userModel.token!, userModel.currentPosition!.latitude, userModel.currentPosition!.longitude);
+      if(userModel.isOnline && userModel.token != null){
+        // 保存最新位置到全局變數
+        latestLatitude = userModel.currentPosition!.latitude;
+        latestLongitude = userModel.currentPosition!.longitude;
+        latestToken = userModel.token!;
+        
+        // 直接排程背景任務處理位置更新
+        _scheduleBackgroundLocationUpdate();
       }
 
       var taskModel = context.read<TaskModel>();
@@ -370,6 +434,8 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     });
 
+    // Initialize BackgroundFetch for reliable background location updates
+    _initBackgroundFetch();
   }
 
   @override
@@ -419,6 +485,40 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  // Initialize BackgroundFetch
+  Future<void> _initBackgroundFetch() async {
+    try {
+      // Configure BackgroundFetch.
+      int status = await BackgroundFetch.configure(BackgroundFetchConfig(
+          minimumFetchInterval: 15,
+          stopOnTerminate: false,
+          enableHeadless: false,
+          requiresBatteryNotLow: false,
+          requiresCharging: false,
+          requiresStorageNotLow: false,
+          requiresDeviceIdle: false,
+          requiredNetworkType: NetworkType.ANY
+      ), (String taskId) async {
+        // This is the fetch-event callback.
+        print("[BackgroundFetch] Event received $taskId");
+        
+        // 處理最新位置更新
+        if (latestLatitude != null && latestLongitude != null && latestToken != null) {
+          await _fetchUpdateLatLngBackground(latestToken!, latestLatitude!, latestLongitude!);
+        }
+        
+        BackgroundFetch.finish(taskId);
+      }, (String taskId) async {
+        // Task timeout handler.
+        print("[BackgroundFetch] TASK TIMEOUT taskId: $taskId");
+        BackgroundFetch.finish(taskId);
+      });
+      print('[BackgroundFetch] configure success: $status');
+    } catch (e) {
+      print('[BackgroundFetch] configure FAILURE: $e');
+    }
+  }
+
   pageCaller(int index){
     switch (index){
       case 0 : { return const HomePage();}
@@ -448,15 +548,33 @@ class _MyHomePageState extends State<MyHomePage> {
           'Content-Type': 'application/json; charset=UTF-8',
           'Authorization': 'token $token'
         },
-      );
+      ).timeout(const Duration(seconds: 5)); // 較短超時，快速失敗
 
-      print(response.body);
-
-      // List body = json.decode(utf8.decode(response.body.runes.toList()));
-      // print(body);
+      if (response.statusCode == 200) {
+        print('[Location] Update success: $lat, $lng');
+      } else {
+        print('[Location] Update failed: ${response.statusCode}');
+        // 失敗時觸發背景任務
+        _scheduleBackgroundLocationUpdate();
+      }
 
     } catch (e) {
-      print(e);
+      print('[Location] Update failed: $e');
+      // 失敗時觸發背景任務
+      _scheduleBackgroundLocationUpdate();
+    }
+  }
+
+  // 觸發背景位置更新任務
+  void _scheduleBackgroundLocationUpdate() {
+    try {
+      BackgroundFetch.scheduleTask(TaskConfig(
+        taskId: "location-update-${DateTime.now().millisecondsSinceEpoch}",
+        delay: 1000, // 1秒後執行
+      ));
+      print('[BackgroundFetch] Scheduled location update task');
+    } catch (e) {
+      print('[BackgroundFetch] Failed to schedule task: $e');
     }
   }
 }
