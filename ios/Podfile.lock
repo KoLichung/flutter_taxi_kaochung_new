@@ -181,36 +181,36 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
-  amplify_auth_cognito: 76b5a54f05f66f69966b468b8121a0dd33a32c70
-  amplify_secure_storage: be403397a8ba39f5e0f2a05303b3ca03b53b9ee9
-  audioplayers_darwin: 877d9a4d06331c5c374595e46e16453ac7eafa40
-  background_fetch: 39f11371c0dce04b001c4bfd5e782bcccb0a85e2
+  amplify_auth_cognito: 2cbc98c0076a9fa687991e10e44e040a18eab19f
+  amplify_secure_storage: 719bf32fab6d284bd500ac76a65a0c547592bb66
+  audioplayers_darwin: ccf9c770ee768abb07e26d90af093f7bab1c12ab
+  background_fetch: 94b36ee293e82972852dba8ede1fbcd3bd3d9d57
   CocoaLumberjack: 6a459bc897d6d80bd1b8c78482ec7ad05dffc3f0
-  device_info_plus: 97af1d7e84681a90d0693e63169a5d50e0839a0d
+  device_info_plus: 71ffc6ab7634ade6267c7a93088ed7e4f74e5896
   Firebase: 9f574c08c2396885b5e7e100ed4293d956218af9
-  firebase_core: 2ec6b789859c7c24766344ec71fdf78639402d56
-  firebase_messaging: a18e1e02b2e8e69097c8173e0c851be223b21c50
+  firebase_core: 4ac256c293bc0c17f9614fbf1fce7dca5fc6236a
+  firebase_messaging: dcab595676c89d794fff50a2d56cea2bbb28b879
   FirebaseCore: 3cf438f431f18c12cdf2aaf64434648b63f7e383
   FirebaseCoreInternal: 0c569513412da9f3b31bd0b340013bbee8f295c5
   FirebaseInstallations: 771177d89d6c451dc6e50085ec82e2fc77ed0a4a
   FirebaseMessaging: d2d1d9c62c46dd2db49a952f7deb5b16ad2c9742
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
-  flutter_background_geolocation: bdff621611f4cb0e060ce10dc9678f05cf3d8d31
-  flutter_local_notifications: 4cde75091f6327eb8517fa068a0a5950212d2086
-  geolocator_apple: 6cbaf322953988e009e5ecb481f07efece75c450
+  flutter_background_geolocation: 7ae1582e3e42fd68a4258d91349c67340b6f033a
+  flutter_local_notifications: ad39620c743ea4c15127860f4b5641649a988100
+  geolocator_apple: d981750b9f47dbdb02427e1476d9a04397beb8d9
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 26a3abef001b6533cf678d3eb38fd3f614b7872d
-  map_launcher: 5fde49ac9a52672bf99da746599f507b4490d7b5
-  maps_launcher: 2e5b6a2d664ec6c27f82ffa81b74228d770ab203
+  map_launcher: fe43bda6720bb73c12fcc1bdd86123ff49a4d4d6
+  maps_launcher: edf829809ba9e894d70e569bab11c16352dedb45
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
-  package_info_plus: 58f0028419748fad15bf008b270aaa8e54380b1c
-  path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
-  permission_handler_apple: 9878588469a2b0d0fc1e048d9f43605f92e6cec2
+  package_info_plus: 580e9a5f1b6ca5594e7c9ed5f92d1dfb2a66b5e1
+  path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
+  permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
-  shared_preferences_foundation: fcdcbc04712aee1108ac7fda236f363274528f78
-  sqflite_darwin: 5a7236e3b501866c1c9befc6771dfd73ffb8702d
-  url_launcher_ios: 5334b05cef931de560670eeae103fd3e431ac3fe
+  shared_preferences_foundation: 9e1978ff2562383bd5676f64ec4e9aa8fa06a6f7
+  sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
+  url_launcher_ios: 694010445543906933d732453a59da0a173ae33d
 
 PODFILE CHECKSUM: cc1f88378b4bfcf93a6ce00d2c587857c6008d3b
 
-COCOAPODS: 1.15.2
+COCOAPODS: 1.16.2
