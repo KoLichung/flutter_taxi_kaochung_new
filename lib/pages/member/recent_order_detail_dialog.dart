@@ -52,6 +52,8 @@ class _RecentOrderDetailDialogState extends State<RecentOrderDetailDialog> {
             Text('下車：${widget.theCase.offAddress} '),
             const SizedBox(height: 10,),
             Text('車資 \$ ${widget.theCase.caseMoney} '),
+            const SizedBox(height: 10,),
+            Text('備註：${widget.theCase.memo ?? '無'} '),
           ],
         ),
       ),

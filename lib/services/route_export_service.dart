@@ -10,6 +10,7 @@ import 'package:flutter_background_geolocation/flutter_background_geolocation.da
 import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:amplify_storage_s3/amplify_storage_s3.dart';
 import 'package:aws_common/aws_common.dart';
+import 'package:intl/intl.dart';
 import '../config/aws_config.dart';
 
 /// 路線匯出服務
@@ -65,7 +66,7 @@ class RouteExportService {
         latitude REAL NOT NULL,
         longitude REAL NOT NULL,
         case_id INTEGER,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        created_at TEXT NOT NULL
       )
     ''');
     debugPrint('[RouteExport] 資料庫表格已使用簡化結構 (lat, lng, case_id) 創建');
@@ -79,6 +80,7 @@ class RouteExportService {
         'latitude': location.coords.latitude,
         'longitude': location.coords.longitude,
         'case_id': caseId,
+        'created_at': DateFormat('yyyy-MM-ddTHH:mm:ss').format(DateTime.now()),
       };
       final id = await db.insert(_tableName, data, conflictAlgorithm: ConflictAlgorithm.replace);
       debugPrint('[RouteExport] 背景位置已儲存 (lat, lng)，ID: $id, CaseID: $caseId');
@@ -99,6 +101,7 @@ class RouteExportService {
         'latitude': latitude,
         'longitude': longitude,
         'case_id': caseId,
+        'created_at': DateFormat('yyyy-MM-ddTHH:mm:ss').format(DateTime.now()),
       };
       final id = await db.insert(_tableName, data, conflictAlgorithm: ConflictAlgorithm.replace);
       debugPrint('[RouteExport] 初始位置已儲存 (lat, lng)，ID: $id, CaseID: $caseId');
