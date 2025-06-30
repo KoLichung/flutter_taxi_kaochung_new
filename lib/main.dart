@@ -235,7 +235,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-
       theme: ThemeData(
         brightness: Brightness.light,
         primaryColor: Colors.white,
@@ -310,7 +309,8 @@ class _MyHomePageState extends State<MyHomePage> {
       print('[location] - $location');
 
       var userModel = context.read<UserModel>();
-      userModel.currentPosition = Position(longitude: location.coords.longitude, latitude: location.coords.latitude, timestamp: DateTime.now(), accuracy: location.coords.accuracy, altitude: location.coords.altitude, heading: location.coords.heading, speed: location.coords.speed, speedAccuracy: location.coords.accuracy, altitudeAccuracy: 10.0, headingAccuracy: 5.0);
+      userModel.updateCurrentPosition(Position(longitude: location.coords.longitude, latitude: location.coords.latitude, timestamp: DateTime.now(), accuracy: location.coords.accuracy, altitude: location.coords.altitude, heading: location.coords.heading, speed: location.coords.speed, speedAccuracy: location.coords.accuracy, altitudeAccuracy: 10.0, headingAccuracy: 5.0));
+      // userModel.currentPosition = Position(longitude: location.coords.longitude, latitude: location.coords.latitude, timestamp: DateTime.now(), accuracy: location.coords.accuracy, altitude: location.coords.altitude, heading: location.coords.heading, speed: location.coords.speed, speedAccuracy: location.coords.accuracy, altitudeAccuracy: 10.0, headingAccuracy: 5.0);
 
       if(userModel.isOnline && userModel.token != null){
         // 直接調用位置更新，移除背景任務依賴

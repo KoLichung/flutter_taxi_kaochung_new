@@ -58,4 +58,10 @@ class UserModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateCurrentPosition(Position position) {
+    currentPosition = position;
+    notifyListeners();
+    print('[UserModel] Position updated: ${position.latitude}, ${position.longitude}');
+  }
+
 }

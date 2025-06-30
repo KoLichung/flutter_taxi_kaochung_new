@@ -115,16 +115,21 @@ class _LogInState extends State<LogIn> {
       userModel.token = token;
 
       User? user = await _getUserData(token);
-      userModel.setUser(user);
+      
+      if (user != null) {
+        userModel.setUser(user);
 
-      final prefs = await SharedPreferences.getInstance();
-      if (prefs.getBool('isOnline') != null){
-        userModel.isOnline = prefs.getBool('isOnline')!;
-      }else{
-        userModel.isOnline = false;
+        final prefs = await SharedPreferences.getInstance();
+        if (prefs.getBool('isOnline') != null){
+          userModel.isOnline = prefs.getBool('isOnline')!;
+        }else{
+          userModel.isOnline = false;
+        }
+
+        Navigator.of(context).pushNamed('/main');
+      } else {
+        ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('網路異常，或 user token 過期')));
       }
-
-      Navigator.of(context).pushNamed('/main');
 
       // String? userString = prefs.getString('user');
       // if(userString!=null){
@@ -336,17 +341,15 @@ class _LogInState extends State<LogIn> {
         userModel.token = token;
         User? user = await _getUserData(token);
 
-        print(user.name);
-
-        userModel.setUser(user!);
-
-        // Navigator.push(
-        //     context,
-        //     MaterialPageRoute(
-        //       builder: (context) => const HomePage(),
-        //     ));
-
-        Navigator.of(context).pushNamed('/main');
+        if (user != null) {
+          print(user.name);
+          userModel.setUser(user);
+          Navigator.of(context).pushNamed('/main');
+        } else {
+          ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(
+            const SnackBar(content: Text('網路異常，無法取得使用者資料'))
+          );
+        }
         // Navigator.pop(context, 'ok');
       }else{
         print(response.body);
@@ -450,7 +453,7 @@ class _LogInState extends State<LogIn> {
     }
   }
 
-  Future<User> _getUserData(String token) async {
+  Future<User?> _getUserData(String token) async {
     isLoading = true;
     setState(() {});
 
@@ -484,18 +487,19 @@ class _LogInState extends State<LogIn> {
       print(e);
 
       //token過期, 需重新登入
-      _deleteUserToken();
+      // _deleteUserToken();
 
       isLoading = false;
       setState(() {});
 
-      return User();
+      return null;
     }
   }
 
   Future _playLocalAsset() async {
     AudioPlayer player = AudioPlayer();
     await player.play(AssetSource("victory.mp3"));
+    print('play victory from login');
   }
 
   void _printLongString(String text) {

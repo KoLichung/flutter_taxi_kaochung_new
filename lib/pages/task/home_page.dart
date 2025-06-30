@@ -109,6 +109,11 @@ class _HomePageState extends State<HomePage> {
           _fetchCases(userModel.token!);
         });
         bg.BackgroundGeolocation.start();
+        
+        // 延遲獲取位置，解決自動登入時的時序問題
+        Future.delayed(Duration(seconds: 2), () {
+          _getCurrentPosition();
+        });
     }
 
   }
@@ -268,7 +273,9 @@ class _HomePageState extends State<HomePage> {
                   _fetchCases(userModel.token!);
                 });
                 bg.BackgroundGeolocation.start();
-                _getCurrentPosition();
+                Future.delayed(Duration(seconds: 2), () {
+                  _getCurrentPosition();
+                });
               }else{
                 // print('in penalty or no money');
                 ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('處罰中 或 需充值~無法上線~')));
@@ -437,6 +444,7 @@ class _HomePageState extends State<HomePage> {
   Future _playLocalAsset() async {
     AudioPlayer player = AudioPlayer();
     await player.play(AssetSource("victory.mp3"));
+    print('play victory from home_page');
   }
 
   Future _playCancelAsset() async {
@@ -542,17 +550,21 @@ class _HomePageState extends State<HomePage> {
     final hasPermission = await _handlePermission();
 
     if (!hasPermission) {
-      // return;
+      print('no permission for location');
+      return;
     }
 
-    print('getting position');
-    final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
-    var userModel = context.read<UserModel>();
-    if(userModel.isOnline){
-      userModel.currentPosition = position;
-      _fetchUpdateLatLng(userModel.token!, userModel.currentPosition!.latitude, userModel.currentPosition!.longitude);
+    try {
+      print('getting position');
+      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
+      var userModel = context.read<UserModel>();
+      if(userModel.isOnline){
+        userModel.updateCurrentPosition(position);
+        _fetchUpdateLatLng(userModel.token!, userModel.currentPosition!.latitude, userModel.currentPosition!.longitude);
+      }
+    } catch (e) {
+      print('Error getting position: $e');
     }
-
   }
 
   Future _fetchUpdateLatLng(String token, double lat, double lng) async {
@@ -582,6 +594,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future _fetchCases(String token) async {
+    print('start fetch cases');
     String path = ServerApi.PATH_GET_CASES;
     print(token);
     try {
@@ -594,7 +607,13 @@ class _HomePageState extends State<HomePage> {
       );
 
       // print(response.body);
-      _printLongString(response.body);
+      // _printLongString(response.body);
+
+      // 在處理響應前檢查是否正在接單中，避免重複播放聲音
+      if (isCaseConfirming) {
+        print('skip processing fetch cases response because case is confirming');
+        return;
+      }
 
       Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
       List body = map["cases"];
@@ -640,7 +659,7 @@ class _HomePageState extends State<HomePage> {
 
         }else{
           if(myCases.isEmpty && cases.isNotEmpty){
-            if(!isRefusing && checkSecond(cases.first) >= 0 ){
+            if(!isCaseConfirming && !isRefusing && checkSecond(cases.first) >= 0 ){
               _playLocalAsset();
             }
           }
@@ -758,6 +777,19 @@ class _HomePageState extends State<HomePage> {
   Future _putCaseConfirm(String token, Case theCase) async {
     print("case confirm");
     isCaseConfirming = true;
+    
+    // 立即停止所有定時器，避免在接單過程中被干擾
+    if(_timer!=null){
+      print('cancel timer immediately when start confirming');
+      _timer!.cancel();
+      _timer = null;
+    }
+    if(_taskTimer!=null) {
+      print('cancel task timer immediately when start confirming');
+      _taskTimer!.cancel();
+      _taskTimer=null;
+    }
+    
     String path = ServerApi.PATH_CASE_CONFIREM;
 
     try {

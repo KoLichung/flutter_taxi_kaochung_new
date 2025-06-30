@@ -194,7 +194,7 @@ packages:
     source: hosted
     version: "0.5.2"
   background_fetch:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: background_fetch
       sha256: e9f26ae54d88310b7ac2a68f2f9fcee0081a4d5f11100f233a70702021e7ac4f
