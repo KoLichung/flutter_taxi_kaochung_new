@@ -13,7 +13,6 @@ import 'package:flutter_taxi_chinghsien/pages/member/money_record.dart';
 import 'package:flutter_taxi_chinghsien/pages/member/my_account_page.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/disclosure_dialog.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/home_page.dart';
-import 'package:flutter_taxi_chinghsien/pages/task/open_case_page.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
@@ -389,21 +388,9 @@ class _MyHomePageState extends State<MyHomePage> {
           currentIndex: _selectedIndex,
           // onTap: _onItemTapped,
           onTap: (int index) {
-            // if(index == 1){
-            //   Navigator.of(context).push(
-            //     MaterialPageRoute(builder: (context) => const OpenCasePage()),
-            //   );
-            // }else {
               setState(() {
-                var userModel = context.read<UserModel>();
-                if (index == 1 && userModel.isOnline == false){
-                  _selectedIndex = 0;
-                  ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('先上線才能到未結案區！')));
-                }else {
-                  _selectedIndex = index;
-                }
+                _selectedIndex = index;
               });
-            // }
           },
           items: <BottomNavigationBarItem>[
             BottomNavigationBarItem(
@@ -411,7 +398,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 icon: Image.asset('images/24h_tab_icon.png',height: 25,width: 40,),
                 activeIcon:Image.asset('images/24h_tab_icon_selected.png',height: 25,width: 40,),
                 label: "派車首頁"),
-            const BottomNavigationBarItem(icon: Icon(Icons.content_paste), label: '未結案區'),
             const BottomNavigationBarItem(icon: Icon(Icons.person_outlined), label: '會員中心'),
           ],
         ),
@@ -422,15 +408,7 @@ class _MyHomePageState extends State<MyHomePage> {
   pageCaller(int index){
     switch (index){
       case 0 : { return const HomePage();}
-      case 1: {
-        var userModel = context.read<UserModel>();
-        if(userModel.isOnline) {
-          return const OpenCasePage();
-        }else{
-          return const HomePage();
-        }
-      }
-      case 2 : { return const MyAccountPage();}
+      case 1 : { return const MyAccountPage();}
     }
   }
 
