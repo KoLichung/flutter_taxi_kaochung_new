@@ -19,6 +19,8 @@ import '../../widgets/custom_small_oulined_text.dart';
 import 'new_passenger_dialog.dart';
 import 'on_task.dart';
 import 'package:map_launcher/map_launcher.dart';
+import 'case_message_detail_page.dart';
+import 'package:badges/badges.dart' as badges;
 
 
 
@@ -45,6 +47,7 @@ class _CurrentTaskState extends State<CurrentTask> {
   String? userToken;
   bool isRequesting = false;
   bool isAddressCopied = false;
+  int unreadMessageCount = 2; // 假數據：未讀消息數
 
   Timer? _fetchTimer;
 
@@ -117,6 +120,57 @@ class _CurrentTaskState extends State<CurrentTask> {
                 const Text('24h派車'),
               ],
             ),
+            actions: [
+              // 消息圖標按鈕
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: unreadMessageCount > 0
+                    ? badges.Badge(
+                        badgeContent: Text(
+                          unreadMessageCount > 99 ? '99+' : unreadMessageCount.toString(),
+                          style: const TextStyle(color: Colors.white, fontSize: 10),
+                        ),
+                        badgeStyle: const badges.BadgeStyle(
+                          badgeColor: Colors.red,
+                          padding: EdgeInsets.all(4),
+                        ),
+                        position: badges.BadgePosition.topEnd(top: 0, end: 0),
+                        child: IconButton(
+                          icon: const Icon(Icons.message),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CaseMessageDetailPage(
+                                  theCase: theCase,
+                                  unreadCount: unreadMessageCount,
+                                ),
+                              ),
+                            ).then((value) {
+                              // 從消息頁返回後，可以更新未讀數
+                              setState(() {
+                                unreadMessageCount = 0; // 假設已讀
+                              });
+                            });
+                          },
+                        ),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.message),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CaseMessageDetailPage(
+                                theCase: theCase,
+                                unreadCount: unreadMessageCount,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
           ),
           body: SingleChildScrollView(
             child:Consumer<TaskModel>(builder: (context, taskModel, child){
