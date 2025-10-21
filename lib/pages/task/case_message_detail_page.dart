@@ -36,7 +36,7 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
   @override
   void initState() {
     super.initState();
-    _loadFakeMessages();
+    _loadMessages();
   }
 
   @override
@@ -46,20 +46,33 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
     super.dispose();
   }
 
-  // 載入假數據
-  void _loadFakeMessages() {
+  // 載入消息列表
+  void _loadMessages() async {
     setState(() {
       isLoading = true;
     });
 
-    // 模擬網絡延遲
-    Future.delayed(const Duration(seconds: 1), () {
+    // 獲取消息列表
+    final fetchedMessages = await _fetchMessages();
+    
+    if (fetchedMessages != null) {
       setState(() {
-        messages = _generateFakeMessages();
+        messages = fetchedMessages;
         isLoading = false;
       });
+      
+      // 標記消息為已讀
+      await _markMessagesAsRead();
+      
       _scrollToBottom();
-    });
+    } else {
+      setState(() {
+        isLoading = false;
+      });
+      ScaffoldMessenger.of(context)
+        ..removeCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('載入消息失敗')));
+    }
   }
 
   // 生成假消息數據
@@ -141,40 +154,47 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
   }
 
   // 發送消息
-  void _sendMessage() {
+  void _sendMessage() async {
     if (_messageController.text.trim().isEmpty) {
       return;
     }
+
+    final content = _messageController.text.trim();
+    _messageController.clear();
 
     setState(() {
       isSending = true;
     });
 
-    final newMessage = CaseMessage(
-      id: messages.length + 1,
-      caseId: widget.theCase.id,
-      sender: 789, // 假設當前用戶ID是789
-      senderName: '王司機',
-      senderNickName: '老王',
-      messageType: 'text',
-      content: _messageController.text.trim(),
-      isRead: false,
-      createdAt: DateTime.now().toIso8601String(),
-    );
-
-    // 模擬網絡延遲
-    Future.delayed(const Duration(milliseconds: 500), () {
+    // 調用 API 發送文字消息
+    final success = await _sendTextMessage(content);
+    
+    if (success) {
+      // 重新獲取消息列表以顯示最新消息
+      final fetchedMessages = await _fetchMessages();
+      if (fetchedMessages != null) {
+        setState(() {
+          messages = fetchedMessages;
+          isSending = false;
+        });
+        _scrollToBottom();
+        
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(const SnackBar(content: Text('訊息已發送')));
+      } else {
+        setState(() {
+          isSending = false;
+        });
+      }
+    } else {
       setState(() {
-        messages.add(newMessage);
-        _messageController.clear();
         isSending = false;
       });
-      _scrollToBottom();
-      
       ScaffoldMessenger.of(context)
         ..removeCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('訊息已發送')));
-    });
+        ..showSnackBar(const SnackBar(content: Text('發送失敗，請重試')));
+    }
   }
 
   // 滾動到底部
@@ -192,8 +212,9 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
 
   // 判斷是否為自己發送的消息
   bool _isMyMessage(CaseMessage message) {
-    // 假設當前用戶ID是789（司機）
-    return message.sender == 789;
+    final userModel = context.read<UserModel>();
+    // 使用當前登錄用戶的真實 ID 進行判斷
+    return message.sender == userModel.user?.id;
   }
 
   @override
@@ -725,35 +746,36 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
     }
   }
 
-  // API: 發送文字消息（使用假數據）
+  // API: 發送文字消息
   Future<bool> _sendTextMessage(String content) async {
     try {
-      print('[API - 假數據] 發送文字消息...');
-      await Future.delayed(const Duration(milliseconds: 500));
+      print('[API] 發送文字消息...');
       
-      // TODO: 實際 API 調用
-      // final userModel = context.read<UserModel>();
-      // final path = ServerApi.PATH_CASE_MESSAGE_CREATE.replaceAll('{case_id}', widget.theCase.id.toString());
-      // final response = await http.post(
-      //   ServerApi.standard(path: path),
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': 'Token ${userModel.token}',
-      //   },
-      //   body: jsonEncode({
-      //     'message_type': 'text',
-      //     'content': content,
-      //   }),
-      // );
-      // 
-      // if (response.statusCode == 201) {
-      //   print('[API] 發送文字消息成功');
-      //   return true;
-      // }
+      final userModel = context.read<UserModel>();
+      final path = ServerApi.PATH_CASE_MESSAGE_CREATE.replaceAll('{case_id}', widget.theCase.id.toString());
       
-      // 假數據：模擬發送成功
-      print('[API - 假數據] 發送文字消息成功');
-      return true;
+      final response = await http.post(
+        ServerApi.standard(path: path),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token ${userModel.token}',
+        },
+        body: jsonEncode({
+          'message_type': 'text',
+          'content': content,
+        }),
+      );
+      
+      print('[API] 發送文字消息響應: ${response.statusCode}');
+      print('[API] 響應內容: ${response.body}');
+      
+      if (response.statusCode == 201) {
+        print('[API] 發送文字消息成功');
+        return true;
+      } else {
+        print('[API] 發送文字消息失敗: ${response.body}');
+        return false;
+      }
       
     } catch (e) {
       print('[API] 發送文字消息錯誤: $e');
@@ -761,34 +783,61 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
     }
   }
 
-  // API: 獲取消息列表（使用假數據）
+  // API: 獲取消息列表
   Future<List<CaseMessage>?> _fetchMessages() async {
     try {
-      print('[API - 假數據] 獲取消息列表...');
-      await Future.delayed(const Duration(milliseconds: 500));
+      print('[API] 獲取消息列表...');
       
-      // TODO: 實際 API 調用
-      // final userModel = context.read<UserModel>();
-      // final path = ServerApi.PATH_CASE_MESSAGE_CREATE.replaceAll('{case_id}', widget.theCase.id.toString());
-      // final response = await http.get(
-      //   ServerApi.standard(path: path),
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': 'Token ${userModel.token}',
-      //   },
-      // );
-      // 
-      // if (response.statusCode == 200) {
-      //   final data = jsonDecode(utf8.decode(response.body.runes.toList()));
-      //   final List<CaseMessage> messages = [];
-      //   for (var item in data['results']) {
-      //     messages.add(CaseMessage.fromJson(item));
-      //   }
-      //   return messages;
-      // }
+      final userModel = context.read<UserModel>();
+      final path = ServerApi.PATH_CASE_MESSAGE_LIST.replaceAll('{case_id}', widget.theCase.id.toString());
       
-      // 假數據：返回生成的假消息
-      return _generateFakeMessages();
+      final response = await http.get(
+        ServerApi.standard(path: path),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token ${userModel.token}',
+        },
+      );
+      
+      print('[API] 獲取消息列表響應: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.body.runes.toList()));
+        print('[API] 獲取到 ${data['count']} 條消息');
+        print('================================');
+        print('[消息詳情] 當前用戶ID: ${userModel.user?.id}');
+        print('[消息詳情] 當前用戶名: ${userModel.user?.name}');
+        print('================================');
+        
+        final List<CaseMessage> messageList = [];
+        int index = 1;
+        for (var item in data['results']) {
+          final message = CaseMessage.fromJson(item);
+          messageList.add(message);
+          
+          // 打印每條消息的詳細信息
+          print('[消息 $index]');
+          print('  ID: ${message.id}');
+          print('  Sender ID: ${message.sender}');
+          print('  Sender Name: ${message.senderName}');
+          print('  Sender NickName: ${message.senderNickName}');
+          print('  Type: ${message.messageType}');
+          print('  Content: ${message.content}');
+          print('  Is Read: ${message.isRead}');
+          print('  Created At: ${message.createdAt}');
+          print('  判斷: ${message.sender} == 789 ? ${message.sender == 789}');
+          print('  應該判斷: ${message.sender} == ${userModel.user?.id} ? ${message.sender == userModel.user?.id}');
+          print('---');
+          index++;
+        }
+        print('================================');
+        
+        // 反轉列表，讓最舊的消息在上面，最新的在下面
+        return messageList.reversed.toList();
+      } else {
+        print('[API] 獲取消息列表失敗: ${response.body}');
+        return null;
+      }
       
     } catch (e) {
       print('[API] 獲取消息列表錯誤: $e');
@@ -796,31 +845,32 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
     }
   }
 
-  // API: 標記消息為已讀（使用假數據）
+  // API: 標記消息為已讀
   Future<bool> _markMessagesAsRead() async {
     try {
-      print('[API - 假數據] 標記消息為已讀...');
-      await Future.delayed(const Duration(milliseconds: 200));
+      print('[API] 標記消息為已讀...');
       
-      // TODO: 實際 API 調用
-      // final userModel = context.read<UserModel>();
-      // final path = ServerApi.PATH_CASE_MESSAGE_MARK_READ.replaceAll('{case_id}', widget.theCase.id.toString());
-      // final response = await http.post(
-      //   ServerApi.standard(path: path),
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': 'Token ${userModel.token}',
-      //   },
-      // );
-      // 
-      // if (response.statusCode == 200) {
-      //   print('[API] 標記消息為已讀成功');
-      //   return true;
-      // }
+      final userModel = context.read<UserModel>();
+      final path = ServerApi.PATH_CASE_MESSAGE_MARK_READ.replaceAll('{case_id}', widget.theCase.id.toString());
       
-      // 假數據：模擬標記成功
-      print('[API - 假數據] 標記消息為已讀成功');
-      return true;
+      final response = await http.post(
+        ServerApi.standard(path: path),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token ${userModel.token}',
+        },
+      );
+      
+      print('[API] 標記消息為已讀響應: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.body.runes.toList()));
+        print('[API] 標記消息為已讀成功，更新了 ${data['updated_count']} 條消息');
+        return true;
+      } else {
+        print('[API] 標記消息為已讀失敗: ${response.body}');
+        return false;
+      }
       
     } catch (e) {
       print('[API] 標記消息為已讀錯誤: $e');

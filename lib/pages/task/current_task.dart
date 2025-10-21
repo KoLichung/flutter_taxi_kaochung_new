@@ -138,6 +138,13 @@ class _CurrentTaskState extends State<CurrentTask> {
                         child: IconButton(
                           icon: const Icon(Icons.message),
                           onPressed: () {
+                            // 進入消息頁面前，暫停案件狀態輪詢
+                            print('[CurrentTask] 進入消息頁面，暫停案件狀態輪詢');
+                            if (_fetchTimer != null) {
+                              _fetchTimer!.cancel();
+                              _fetchTimer = null;
+                            }
+                            
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -147,7 +154,13 @@ class _CurrentTaskState extends State<CurrentTask> {
                                 ),
                               ),
                             ).then((value) {
-                              // 從消息頁返回後，可以更新未讀數
+                              // 從消息頁返回後，恢復案件狀態輪詢
+                              print('[CurrentTask] 返回任務頁面，恢復案件狀態輪詢');
+                              _fetchTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+                                _fetchCaseState(userToken!, theCase.id!);
+                              });
+                              
+                              // 更新未讀數
                               setState(() {
                                 unreadMessageCount = 0; // 假設已讀
                               });
@@ -158,6 +171,13 @@ class _CurrentTaskState extends State<CurrentTask> {
                     : IconButton(
                         icon: const Icon(Icons.message),
                         onPressed: () {
+                          // 進入消息頁面前，暫停案件狀態輪詢
+                          print('[CurrentTask] 進入消息頁面，暫停案件狀態輪詢');
+                          if (_fetchTimer != null) {
+                            _fetchTimer!.cancel();
+                            _fetchTimer = null;
+                          }
+                          
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -166,7 +186,13 @@ class _CurrentTaskState extends State<CurrentTask> {
                                 unreadCount: unreadMessageCount,
                               ),
                             ),
-                          );
+                          ).then((value) {
+                            // 從消息頁返回後，恢復案件狀態輪詢
+                            print('[CurrentTask] 返回任務頁面，恢復案件狀態輪詢');
+                            _fetchTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+                              _fetchCaseState(userToken!, theCase.id!);
+                            });
+                          });
                         },
                       ),
               ),

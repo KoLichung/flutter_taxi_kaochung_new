@@ -4,7 +4,7 @@
 
 Case Message API 提供派单者和司机之间针对某个 Case 进行对话的功能，支持文字和图片消息。
 
-**Base URL**: `/api/dispatcher/`
+**Base URL**: `/api/dispatch/`
 
 **认证方式**: Token Authentication
 
@@ -18,11 +18,74 @@ Content-Type: application/json
 
 ## API 端点列表
 
-### 1. 聊天列表页面
+### 0. 系统消息列表（DispatchMessage）
 
-获取当前用户所有有消息的 Case 列表，每个 Case 显示最新一条消息和未读数。
+获取当前用户的系统消息列表，同时返回 Case 消息的未读总数。
 
-**端点**: `GET /api/dispatcher/case-messages/`
+**端点**: `GET /api/dispatch/messages/`
+
+**分页**: 每页 20 条
+
+**请求参数**:
+- `page` (可选): 页码，默认为 1
+- `q` (可选): 搜索内容
+
+**示例请求**:
+```bash
+GET /api/dispatch/messages/?page=1
+Authorization: Token abc123...
+```
+
+**响应示例**:
+```json
+{
+    "count": 150,
+    "next": "http://example.com/api/dispatch/messages/?page=2",
+    "previous": null,
+    "case_message_unread_count": 8,
+    "results": [
+        {
+            "id": 1,
+            "content": "派單成功，正在尋找駕駛...",
+            "sender": null,
+            "recipient": 101,
+            "sender_details": null,
+            "recipient_details": {
+                "id": 101,
+                "name": "李派单",
+                "phone": "0912345678",
+                "nick_name": "小李"
+            },
+            "is_from_server": true,
+            "created_at": "2025-01-10T14:30:00+08:00"
+        }
+    ]
+}
+```
+
+**响应字段说明**:
+- `count`: 总消息数
+- `next`: 下一页 URL
+- `previous`: 上一页 URL
+- **`case_message_unread_count`**: 当前 dispatch 在所有 Case 中的未读消息总数（重要！）
+- `results`: 系统消息列表
+
+**说明**:
+- `case_message_unread_count` 显示派单者在所有派出的 Case 中，收到的未读消息总数
+- 可用于在 UI 上显示小红点或未读数字徽章
+
+---
+
+### 1. Case 聊天列表页面
+
+获取当前派单者（dispatch）派出的所有 Case 列表，每个 Case 显示最新一条消息和未读数。
+
+**重要**: 
+- 只返回当前用户作为 **dispatch** 派出的 Case，不包括作为司机接单的 Case
+- 返回所有派出的 Case，包括有消息和没有消息的 Case
+- 派单者可以主动发讯给司机，不需要等司机先发消息
+
+**端点**: `GET /api/dispatch/case-messages/`
 
 **分页**: 固定每页 20 条
 
@@ -31,7 +94,7 @@ Content-Type: application/json
 
 **示例请求**:
 ```bash
-GET /api/dispatcher/case-messages/?page=1
+GET /api/dispatch/case-messages/?page=1
 Authorization: Token abc123...
 ```
 
@@ -39,7 +102,7 @@ Authorization: Token abc123...
 ```json
 {
     "count": 45,
-    "next": "http://example.com/api/dispatcher/case-messages/?page=2",
+    "next": "http://example.com/api/dispatch/case-messages/?page=2",
     "previous": null,
     "results": [
         {
@@ -48,8 +111,8 @@ Authorization: Token abc123...
             "case_state": "on_road",
             "driver_name": "王司机",
             "driver_nick_name": "老王",
-            "dispatcher_name": "李派单",
-            "dispatcher_nick_name": "小李",
+            "dispatch_name": "李派单",
+            "dispatch_nick_name": "小李",
             "latest_message": {
                 "id": 456,
                 "message_type": "text",
@@ -68,8 +131,8 @@ Authorization: Token abc123...
             "case_state": "way_to_catch",
             "driver_name": "张司机",
             "driver_nick_name": "小张",
-            "dispatcher_name": "李派单",
-            "dispatcher_nick_name": "小李",
+            "dispatch_name": "李派单",
+            "dispatch_nick_name": "小李",
             "latest_message": {
                 "id": 457,
                 "message_type": "image",
@@ -87,26 +150,31 @@ Authorization: Token abc123...
 ```
 
 **响应字段说明**:
-- `count`: 总共有多少个有消息的 Case
+- `count`: 总共有多少个 Case（所有 dispatch 是当前用户的 Case，包括有消息和无消息的）
 - `next`: 下一页的 URL（如果没有则为 null）
 - `previous`: 上一页的 URL（如果没有则为 null）
-- `results`: Case 列表数组
+- `results`: Case 列表数组（仅包含 dispatch 是当前用户的 Case）
   - `id`: Case ID
   - `case_number`: 单号
   - `case_state`: Case 状态
   - `driver_name`: 司机姓名
   - `driver_nick_name`: 司机昵称
-  - `dispatcher_name`: 派单者姓名
-  - `dispatcher_nick_name`: 派单者昵称
-  - `latest_message`: 最新一条消息
+  - `dispatch_name`: 派单者姓名
+  - `dispatch_nick_name`: 派单者昵称
+  - `latest_message`: 最新一条消息（**如果没有消息则为 null**）
     - `message_type`: 消息类型 (`text`, `image`, `system`)
     - `content`: 文字内容
     - `image_url`: 图片 URL（如果是图片消息）
     - `sender_id`: 发送者 ID
     - `sender_name`: 发送者姓名
     - `created_at`: 创建时间
-  - `unread_count`: 未读消息数量
+  - `unread_count`: 未读消息数量（没有消息时为 0）
   - `create_time`: Case 创建时间
+
+**排序规则**:
+- 有消息的 Case：按最后消息时间降序（newest first）
+- 无消息的 Case：按 Case 创建时间降序
+- 整体效果：有新消息的排最前面，然后是旧消息的，最后是没有消息但是新建的 Case
 
 ---
 
@@ -114,7 +182,7 @@ Authorization: Token abc123...
 
 获取某个 Case 的所有消息，按时间从新到旧排序。
 
-**端点**: `GET /api/dispatcher/cases/{case_id}/messages/`
+**端点**: `GET /api/dispatch/cases/{case_id}/messages/`
 
 **分页**: 固定每页 30 条
 
@@ -126,7 +194,7 @@ Authorization: Token abc123...
 
 **示例请求**:
 ```bash
-GET /api/dispatcher/cases/123/messages/?page=1
+GET /api/dispatch/cases/123/messages/?page=1
 Authorization: Token abc123...
 ```
 
@@ -134,7 +202,7 @@ Authorization: Token abc123...
 ```json
 {
     "count": 85,
-    "next": "http://example.com/api/dispatcher/cases/123/messages/?page=2",
+    "next": "http://example.com/api/dispatch/cases/123/messages/?page=2",
     "previous": null,
     "results": [
         {
@@ -207,10 +275,10 @@ Authorization: Token abc123...
 
 创建一条新的文字消息。
 
-**端点**: `POST /api/dispatcher/cases/{case_id}/messages/`
+**端点**: `POST /api/dispatch/cases/{case_id}/messages/`
 
 **路径参数**:
-- `case_id`: Case ID
+- `case_id`: Case ID（会自动关联到消息的 case 字段）
 
 **请求体**:
 ```json
@@ -223,6 +291,11 @@ Authorization: Token abc123...
 **请求字段说明**:
 - `message_type`: 必填，固定为 `"text"`
 - `content`: 必填，消息内容
+
+**自动设置的字段**（不需要在请求体中提供）:
+- `case`: 自动从 URL 路径参数 `case_id` 获取
+- `sender`: 自动设置为当前认证用户
+- `created_at`: 自动设置为当前时间
 
 **响应示例**:
 ```json
@@ -248,7 +321,7 @@ Authorization: Token abc123...
 
 在上传图片之前，先调用此 API 获取 S3 上传 URL 和 image_key。
 
-**端点**: `POST /api/dispatcher/cases/{case_id}/messages/upload-url/`
+**端点**: `POST /api/dispatch/cases/{case_id}/messages/upload-url/`
 
 **路径参数**:
 - `case_id`: Case ID
@@ -294,10 +367,10 @@ Authorization: Token abc123...
 
 图片上传成功后，创建一条图片消息记录。
 
-**端点**: `POST /api/dispatcher/cases/{case_id}/messages/`
+**端点**: `POST /api/dispatch/cases/{case_id}/messages/`
 
 **路径参数**:
-- `case_id`: Case ID
+- `case_id`: Case ID（会自动关联到消息的 case 字段）
 
 **请求体**:
 ```json
@@ -314,6 +387,11 @@ Authorization: Token abc123...
 - `image_key`: 必填，从 upload-url API 获取的 key
 - `image_url`: 必填，从 upload-url API 获取的 URL
 - `content`: 可选，图片说明文字
+
+**自动设置的字段**（不需要在请求体中提供）:
+- `case`: 自动从 URL 路径参数 `case_id` 获取
+- `sender`: 自动设置为当前认证用户
+- `created_at`: 自动设置为当前时间
 
 **响应示例**:
 ```json
@@ -339,7 +417,7 @@ Authorization: Token abc123...
 
 打开某个 Case 的聊天页面时，调用此 API 标记所有消息为已读。
 
-**端点**: `POST /api/dispatcher/cases/{case_id}/messages/mark-read/`
+**端点**: `POST /api/dispatch/cases/{case_id}/messages/mark-read/`
 
 **路径参数**:
 - `case_id`: Case ID
@@ -364,14 +442,14 @@ Authorization: Token abc123...
 
 获取某个 Case 的未读消息数量。
 
-**端点**: `GET /api/dispatcher/cases/{case_id}/messages/unread-count/`
+**端点**: `GET /api/dispatch/cases/{case_id}/messages/unread-count/`
 
 **路径参数**:
 - `case_id`: Case ID
 
 **示例请求**:
 ```bash
-GET /api/dispatcher/cases/123/messages/unread-count/
+GET /api/dispatch/cases/123/messages/unread-count/
 Authorization: Token abc123...
 ```
 
@@ -437,7 +515,7 @@ Authorization: Token abc123...
 
 ```javascript
 // 1. 发送文字消息
-fetch('/api/dispatcher/cases/123/messages/', {
+fetch('/api/dispatch/cases/123/messages/', {
     method: 'POST',
     headers: {
         'Authorization': 'Token abc123...',
@@ -454,7 +532,7 @@ fetch('/api/dispatcher/cases/123/messages/', {
 
 ```javascript
 // 1. 获取上传 URL
-const uploadResponse = await fetch('/api/dispatcher/cases/123/messages/upload-url/', {
+const uploadResponse = await fetch('/api/dispatch/cases/123/messages/upload-url/', {
     method: 'POST',
     headers: {
         'Authorization': 'Token abc123...',
@@ -477,7 +555,7 @@ await fetch(upload_url, {
 });
 
 // 3. 创建图片消息记录
-await fetch('/api/dispatcher/cases/123/messages/', {
+await fetch('/api/dispatch/cases/123/messages/', {
     method: 'POST',
     headers: {
         'Authorization': 'Token abc123...',
@@ -496,7 +574,7 @@ await fetch('/api/dispatcher/cases/123/messages/', {
 
 ```javascript
 // 1. 获取消息列表
-const response = await fetch('/api/dispatcher/cases/123/messages/?page=1', {
+const response = await fetch('/api/dispatch/cases/123/messages/?page=1', {
     headers: {
         'Authorization': 'Token abc123...'
     }
@@ -504,7 +582,7 @@ const response = await fetch('/api/dispatcher/cases/123/messages/?page=1', {
 const data = await response.json();
 
 // 2. 标记消息为已读
-await fetch('/api/dispatcher/cases/123/messages/mark-read/', {
+await fetch('/api/dispatch/cases/123/messages/mark-read/', {
     method: 'POST',
     headers: {
         'Authorization': 'Token abc123...'
@@ -515,8 +593,8 @@ await fetch('/api/dispatcher/cases/123/messages/mark-read/', {
 ### 场景 4: 显示聊天列表（带未读数）
 
 ```javascript
-// 获取所有有消息的 Case 列表
-const response = await fetch('/api/dispatcher/case-messages/?page=1', {
+// 获取当前 dispatch 派出的所有有消息的 Case 列表
+const response = await fetch('/api/dispatch/case-messages/?page=1', {
     headers: {
         'Authorization': 'Token abc123...'
     }
@@ -526,7 +604,40 @@ const data = await response.json();
 // data.results 包含:
 // - 每个 Case 的基本信息
 // - 最新一条消息
-// - 未读消息数量
+// - 每个 Case 的未读消息数量
+
+// 注意：只返回 dispatch 是当前用户的 Case
+```
+
+### 场景 5: 获取 Case 消息总未读数（用于显示徽章）
+
+```javascript
+// 获取系统消息列表时，同时获取 Case 消息的总未读数
+const response = await fetch('/api/dispatch/messages/?page=1', {
+    headers: {
+        'Authorization': 'Token abc123...'
+    }
+});
+const data = await response.json();
+
+// 显示在 UI 上
+console.log(`系统消息: ${data.count} 条`);
+console.log(`Case 消息未读: ${data.case_message_unread_count} 条`);
+
+// 用于显示小红点或数字徽章
+if (data.case_message_unread_count > 0) {
+    // 显示红点或数字
+    showBadge(data.case_message_unread_count);
+}
+
+// data 结构:
+// {
+//     "count": 150,
+//     "next": "...",
+//     "previous": null,
+//     "case_message_unread_count": 8,  // ← 重要！所有 Case 的未读消息总数
+//     "results": [...]
+// }
 ```
 
 ---
@@ -545,7 +656,8 @@ const data = await response.json();
    - 实际使用时需要配置真实的 AWS S3 credentials
    - 图片上传流程：获取 URL → 上传到 S3 → 创建消息记录
 5. **权限**: 
-   - 只有 Case 的 dispatcher 或 driver 可以查看和发送消息
+   - Case 消息列表: 只显示 dispatch 是当前用户的 Case
+   - Case 消息详情: 只有 Case 的 dispatch 或 driver 可以查看和发送消息
    - 自动标记非自己发送的消息为已读
 6. **图片**: 
    - 建议图片大小限制在 5MB 以内
@@ -555,7 +667,18 @@ const data = await response.json();
 
 ## 更新日志
 
-- **2025-01-10**: 初版 API 文档
+- **2025-10-20 v1.2**: 重要更新
+  - **变更**: Case 消息列表现在返回所有派出的 Case（包括无消息的 Case）
+  - **优化**: 派单者可以主动发讯给司机，不需要等司机先发消息
+  - **排序**: 有消息的按最后消息时间排序，无消息的按 Case 创建时间排序
+  - `latest_message` 字段在没有消息时为 null
+
+- **2025-10-10 v1.1**: 重要更新
+  - **新增**: DispatchMessage API 返回 `case_message_unread_count` 字段
+  - **变更**: Case 消息列表只返回 dispatch 是当前用户的 Case
+  - 可用于在 UI 上显示 Case 消息的未读数字徽章
+  
+- **2025-10-10 v1.0**: 初版 API 文档
   - 支持文字和图片消息
   - 支持消息分页查询
   - 支持未读消息标记和计数

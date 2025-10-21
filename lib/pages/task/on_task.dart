@@ -251,50 +251,78 @@ class _OnTaskState extends State<OnTask> {
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: unreadMessageCount > 0
-                ? badges.Badge(
-                    badgeContent: Text(
-                      unreadMessageCount > 99 ? '99+' : unreadMessageCount.toString(),
-                      style: const TextStyle(color: Colors.white, fontSize: 10),
-                    ),
-                    badgeStyle: const badges.BadgeStyle(
-                      badgeColor: Colors.red,
-                      padding: EdgeInsets.all(4),
-                    ),
-                    position: badges.BadgePosition.topEnd(top: 0, end: 0),
-                    child: IconButton(
-                      icon: const Icon(Icons.message),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => CaseMessageDetailPage(
-                              theCase: widget.theCase,
-                              unreadCount: unreadMessageCount,
-                            ),
-                          ),
-                        ).then((value) {
-                          // 從消息頁返回後，可以更新未讀數
-                          setState(() {
-                            unreadMessageCount = 0; // 假設已讀
-                          });
-                        });
-                      },
-                    ),
-                  )
-                : IconButton(
-                    icon: const Icon(Icons.message),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => CaseMessageDetailPage(
-                            theCase: widget.theCase,
-                            unreadCount: unreadMessageCount,
-                          ),
+                    ? badges.Badge(
+                        badgeContent: Text(
+                          unreadMessageCount > 99 ? '99+' : unreadMessageCount.toString(),
+                          style: const TextStyle(color: Colors.white, fontSize: 10),
                         ),
-                      );
-                    },
-                  ),
+                        badgeStyle: const badges.BadgeStyle(
+                          badgeColor: Colors.red,
+                          padding: EdgeInsets.all(4),
+                        ),
+                        position: badges.BadgePosition.topEnd(top: 0, end: 0),
+                        child: IconButton(
+                          icon: const Icon(Icons.message),
+                          onPressed: () {
+                            // 進入消息頁面前，暫停案件狀態輪詢
+                            print('[OnTask] 進入消息頁面，暫停案件狀態輪詢');
+                            if (_fetchTimer != null) {
+                              _fetchTimer!.cancel();
+                              _fetchTimer = null;
+                            }
+                            
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CaseMessageDetailPage(
+                                  theCase: widget.theCase,
+                                  unreadCount: unreadMessageCount,
+                                ),
+                              ),
+                            ).then((value) {
+                              // 從消息頁返回後，恢復案件狀態輪詢
+                              print('[OnTask] 返回任務頁面，恢復案件狀態輪詢');
+                              var taskModel = context.read<TaskModel>();
+                              _fetchTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+                                _fetchCaseState(userToken!, taskModel.cases.first.id!);
+                              });
+                              
+                              // 更新未讀數
+                              setState(() {
+                                unreadMessageCount = 0; // 假設已讀
+                              });
+                            });
+                          },
+                        ),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.message),
+                        onPressed: () {
+                          // 進入消息頁面前，暫停案件狀態輪詢
+                          print('[OnTask] 進入消息頁面，暫停案件狀態輪詢');
+                          if (_fetchTimer != null) {
+                            _fetchTimer!.cancel();
+                            _fetchTimer = null;
+                          }
+                          
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CaseMessageDetailPage(
+                                theCase: widget.theCase,
+                                unreadCount: unreadMessageCount,
+                              ),
+                            ),
+                          ).then((value) {
+                            // 從消息頁返回後，恢復案件狀態輪詢
+                            print('[OnTask] 返回任務頁面，恢復案件狀態輪詢');
+                            var taskModel = context.read<TaskModel>();
+                            _fetchTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+                              _fetchCaseState(userToken!, taskModel.cases.first.id!);
+                            });
+                          });
+                        },
+                      ),
           ),
         ],
       ),

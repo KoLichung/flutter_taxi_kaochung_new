@@ -36,12 +36,13 @@ class ServerApi{
 
   static const PATH_GET_CURRENT_VERSION= '/api/get_current_version';
 
-  // Case Message API
-  static const PATH_CASE_MESSAGES = '/api/dispatcher/case-messages/';
-  static const PATH_CASE_MESSAGE_UNREAD_COUNT = '/api/dispatcher/cases/{case_id}/messages/unread-count/';
-  static const PATH_CASE_MESSAGE_MARK_READ = '/api/dispatcher/cases/{case_id}/messages/mark-read/';
-  static const PATH_CASE_MESSAGE_UPLOAD_URL = '/api/dispatcher/cases/{case_id}/messages/upload-url/';
-  static const PATH_CASE_MESSAGE_CREATE = '/api/dispatcher/cases/{case_id}/messages/';
+  // Case Message API (注意: base URL 是 /api/dispatch/)
+  static const PATH_CASE_MESSAGES = '/api/dispatch/case-messages/';
+  static const PATH_CASE_MESSAGE_LIST = '/api/dispatch/cases/{case_id}/messages/';
+  static const PATH_CASE_MESSAGE_UNREAD_COUNT = '/api/dispatch/cases/{case_id}/messages/unread-count/';
+  static const PATH_CASE_MESSAGE_MARK_READ = '/api/dispatch/cases/{case_id}/messages/mark-read/';
+  static const PATH_CASE_MESSAGE_UPLOAD_URL = '/api/dispatch/cases/{case_id}/messages/upload-url/';
+  static const PATH_CASE_MESSAGE_CREATE = '/api/dispatch/cases/{case_id}/messages/';
 
   static Uri standard({String? path, Map<String, String>? queryParameters}) {
     print(Uri.http(_HOST, '$path', queryParameters));
