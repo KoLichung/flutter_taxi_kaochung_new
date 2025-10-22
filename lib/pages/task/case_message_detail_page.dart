@@ -421,6 +421,14 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
   }
 
   Widget _buildMessageBubble(CaseMessage message, bool isMyMessage) {
+    // 為圖片消息添加詳細 log
+    if (message.messageType == 'image') {
+      print('[UI渲染] 圖片消息 ID: ${message.id}');
+      print('[UI渲染] Image URL: ${message.imageUrl}');
+      print('[UI渲染] 是否為 HTTP URL: ${message.imageUrl?.startsWith('http')}');
+      print('[UI渲染] 是我的消息: $isMyMessage');
+    }
+    
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -770,37 +778,45 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
   // API: 創建圖片消息記錄（使用假數據）
   Future<bool> _createImageMessage(String imageKey, String imageUrl, String content) async {
     try {
-      print('[API - 假數據] 步驟3: 創建圖片消息記錄...');
-      await Future.delayed(const Duration(milliseconds: 500));
+      print('[API] 創建圖片消息記錄...');
+      print('[API] Image Key: $imageKey');
+      print('[API] Image URL: $imageUrl');
       
-      // TODO: 實際 API 調用
-      // final userModel = context.read<UserModel>();
-      // final path = ServerApi.PATH_CASE_MESSAGE_CREATE.replaceAll('{case_id}', widget.theCase.id.toString());
-      // final response = await http.post(
-      //   ServerApi.standard(path: path),
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': 'Token ${userModel.token}',
-      //   },
-      //   body: jsonEncode({
-      //     'message_type': 'image',
-      //     'image_key': imageKey,
-      //     'image_url': imageUrl,
-      //     'content': content,
-      //   }),
-      // );
-      // 
-      // if (response.statusCode == 201) {
-      //   print('[API] 創建圖片消息成功');
-      //   return true;
-      // }
+      final userModel = context.read<UserModel>();
+      final path = ServerApi.PATH_CASE_MESSAGE_CREATE.replaceAll('{case_id}', widget.theCase.id.toString());
       
-      // 假數據：模擬創建成功
-      print('[API - 假數據] 創建圖片消息成功');
-      return true;
+      final requestBody = {
+        'message_type': 'image',
+        'image_key': imageKey,
+        'image_url': imageUrl,
+        'content': content,
+      };
+      
+      print('[API] 請求路徑: $path');
+      print('[API] 請求體: ${jsonEncode(requestBody)}');
+      
+      final response = await http.post(
+        ServerApi.standard(path: path),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token ${userModel.token}',
+        },
+        body: jsonEncode(requestBody),
+      );
+      
+      print('[API] 響應狀態碼: ${response.statusCode}');
+      print('[API] 響應內容: ${response.body}');
+      
+      if (response.statusCode == 201) {
+        print('[API] ✅ 創建圖片消息成功');
+        return true;
+      } else {
+        print('[API] ❌ 創建圖片消息失敗: ${response.statusCode}');
+        return false;
+      }
       
     } catch (e) {
-      print('[API] 創建圖片消息錯誤: $e');
+      print('[API] ❌ 創建圖片消息錯誤: $e');
       return false;
     }
   }
@@ -863,33 +879,30 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.body.runes.toList()));
         print('[API] 獲取到 ${data['count']} 條消息');
-        print('================================');
-        print('[消息詳情] 當前用戶ID: ${userModel.user?.id}');
-        print('[消息詳情] 當前用戶名: ${userModel.user?.name}');
-        print('================================');
+        print('[消息] 當前用戶ID: ${userModel.user?.id}');
         
         final List<CaseMessage> messageList = [];
-        int index = 1;
+        int imageCount = 0;
+        int textCount = 0;
+        
         for (var item in data['results']) {
           final message = CaseMessage.fromJson(item);
           messageList.add(message);
           
-          // 打印每條消息的詳細信息
-          print('[消息 $index]');
-          print('  ID: ${message.id}');
-          print('  Sender ID: ${message.sender}');
-          print('  Sender Name: ${message.senderName}');
-          print('  Sender NickName: ${message.senderNickName}');
-          print('  Type: ${message.messageType}');
-          print('  Content: ${message.content}');
-          print('  Is Read: ${message.isRead}');
-          print('  Created At: ${message.createdAt}');
-          print('  判斷: ${message.sender} == 789 ? ${message.sender == 789}');
-          print('  應該判斷: ${message.sender} == ${userModel.user?.id} ? ${message.sender == userModel.user?.id}');
-          print('---');
-          index++;
+          if (message.messageType == 'image') {
+            imageCount++;
+            print('[圖片消息 $imageCount]');
+            print('  ID: ${message.id}');
+            print('  Sender: ${message.sender} (${message.senderName})');
+            print('  Image URL: ${message.imageUrl}');
+            print('  Image Key: ${message.imageKey}');
+            print('  Created At: ${message.createdAt}');
+          } else if (message.messageType == 'text') {
+            textCount++;
+          }
         }
-        print('================================');
+        
+        print('[消息統計] 文字: $textCount, 圖片: $imageCount, 總計: ${messageList.length}');
         
         // 反轉列表，讓最舊的消息在上面，最新的在下面
         return messageList.reversed.toList();
