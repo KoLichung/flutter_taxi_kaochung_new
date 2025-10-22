@@ -48,7 +48,7 @@ class _OnTaskState extends State<OnTask> {
   bool isNextTaskVisible = false;
   bool isRequesting = false;
   bool isAddressCopied = false;
-  int unreadMessageCount = 3; // 假數據：未讀消息數
+  int unreadMessageCount = 0; // 未讀消息數（從 API 獲取）
 
   TextEditingController priceController = TextEditingController();
   Timer? _taskTimer;
@@ -287,10 +287,8 @@ class _OnTaskState extends State<OnTask> {
                                 _fetchCaseState(userToken!, taskModel.cases.first.id!);
                               });
                               
-                              // 更新未讀數
-                              setState(() {
-                                unreadMessageCount = 0; // 假設已讀
-                              });
+                              // 立即刷新一次以更新未讀數
+                              _fetchCaseState(userToken!, taskModel.cases.first.id!);
                             });
                           },
                         ),
@@ -320,6 +318,9 @@ class _OnTaskState extends State<OnTask> {
                             _fetchTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
                               _fetchCaseState(userToken!, taskModel.cases.first.id!);
                             });
+                            
+                            // 立即刷新一次以更新未讀數
+                            _fetchCaseState(userToken!, taskModel.cases.first.id!);
                           });
                         },
                       ),
@@ -829,6 +830,14 @@ class _OnTaskState extends State<OnTask> {
 
       String currentCaseState = map['current_case_state'];
       print('current case state $currentCaseState');
+      
+      // 更新未讀消息數
+      if (map.containsKey('case_message_unread_count')) {
+        setState(() {
+          unreadMessageCount = map['case_message_unread_count'] ?? 0;
+        });
+        print('[OnTask] 未讀消息數: $unreadMessageCount');
+      }
 
       if (map['confirmed_next_case'] != null){
         var taskModel = context.read<TaskModel>();

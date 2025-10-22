@@ -10,6 +10,7 @@ import '../../models/case.dart';
 import '../../models/case_message.dart';
 import '../../config/serverApi.dart';
 import '../../notifier_models/user_model.dart';
+import '../../services/s3_upload_service.dart';
 
 class CaseMessageDetailPage extends StatefulWidget {
   final Case theCase;
@@ -32,18 +33,82 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
   List<CaseMessage> messages = [];
   bool isLoading = false;
   bool isSending = false;
+  Timer? _pollingTimer; // 輪詢定時器
 
   @override
   void initState() {
     super.initState();
     _loadMessages();
+    _startPolling();
   }
 
   @override
   void dispose() {
+    _stopPolling();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+  
+  // 開始輪詢消息
+  void _startPolling() {
+    print('[CaseMessage] 開始輪詢消息，每3秒一次');
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      _refreshMessages();
+    });
+  }
+  
+  // 停止輪詢消息
+  void _stopPolling() {
+    if (_pollingTimer != null) {
+      print('[CaseMessage] 停止輪詢消息');
+      _pollingTimer!.cancel();
+      _pollingTimer = null;
+    }
+  }
+  
+  // 刷新消息（輪詢使用，靜默刷新）
+  void _refreshMessages() async {
+    // 不顯示 loading 狀態，靜默刷新
+    final fetchedMessages = await _fetchMessages();
+    
+    if (fetchedMessages != null && mounted) {
+      // 只有在消息數量或內容改變時才更新
+      if (fetchedMessages.length != messages.length || 
+          _hasNewMessages(fetchedMessages)) {
+        setState(() {
+          final wasAtBottom = _isAtBottom();
+          messages = fetchedMessages;
+          
+          // 如果之前在底部，則滾動到新消息
+          if (wasAtBottom) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _scrollToBottom();
+            });
+          }
+        });
+        
+        // 標記消息為已讀
+        await _markMessagesAsRead();
+      }
+    }
+  }
+  
+  // 檢查是否有新消息
+  bool _hasNewMessages(List<CaseMessage> newMessages) {
+    if (messages.isEmpty) return newMessages.isNotEmpty;
+    if (newMessages.isEmpty) return false;
+    
+    // 比較最新消息的 ID
+    return newMessages.last.id != messages.last.id;
+  }
+  
+  // 檢查是否在底部
+  bool _isAtBottom() {
+    if (!_scrollController.hasClients) return true;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    return currentScroll >= maxScroll - 100; // 100px 的容差
   }
 
   // 載入消息列表
@@ -563,29 +628,31 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
     }
   }
 
-  // 圖片上傳流程（使用假數據模擬）
+  // 圖片上傳流程（使用真實 S3 上傳）
   Future<void> _uploadImageAndSendMessage(XFile imageFile) async {
     try {
-      // 步驟1: 向服務器請求上傳 URL 和 key
-      final uploadInfo = await _getUploadUrl(imageFile.name);
-      if (uploadInfo == null) {
-        throw Exception('獲取上傳URL失敗');
-      }
+      final userModel = context.read<UserModel>();
       
-      // 步驟2: 上傳圖片到 S3
-      final uploadSuccess = await _uploadToS3(
-        uploadInfo['upload_url']!,
-        imageFile,
+      // 步驟1: 直接上傳圖片到 S3
+      print('[圖片上傳] 開始上傳到 S3...');
+      final uploadResult = await S3UploadService.uploadImage(
+        filePath: imageFile.path,
+        caseId: widget.theCase.id!,
+        userId: userModel.user!.id!,
       );
       
-      if (!uploadSuccess) {
+      if (uploadResult == null) {
         throw Exception('上傳到S3失敗');
       }
       
-      // 步驟3: 告知服務器圖片已上傳，創建消息記錄
+      print('[圖片上傳] S3 上傳成功');
+      print('[圖片上傳] Image Key: ${uploadResult['image_key']}');
+      print('[圖片上傳] Image URL: ${uploadResult['image_url']}');
+      
+      // 步驟2: 告知服務器圖片已上傳，創建消息記錄
       final messageCreated = await _createImageMessage(
-        uploadInfo['image_key']!,
-        uploadInfo['image_url']!,
+        uploadResult['image_key']!,
+        uploadResult['image_url']!,
         '', // 可選的圖片說明
       );
       
@@ -593,35 +660,27 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
         throw Exception('創建消息記錄失敗');
       }
       
-      // 暫時使用本地路徑顯示圖片（因為S3是假的）
-      final newMessage = CaseMessage(
-        id: messages.length + 1,
-        caseId: widget.theCase.id,
-        sender: 789, // 假設當前用戶ID是789
-        senderName: '王司機',
-        senderNickName: '老王',
-        messageType: 'image',
-        content: '',
-        imageUrl: imageFile.path, // 使用本地路徑
-        imageKey: uploadInfo['image_key'],
-        isRead: false,
-        createdAt: DateTime.now().toIso8601String(),
-      );
-
-      setState(() {
-        messages.add(newMessage);
-        isSending = false;
-      });
-      
-      _scrollToBottom();
-      
-      print('[模擬] 圖片消息發送成功');
-      ScaffoldMessenger.of(context)
-        ..removeCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('圖片已發送')));
+      // 重新獲取消息列表以顯示最新消息
+      final fetchedMessages = await _fetchMessages();
+      if (fetchedMessages != null) {
+        setState(() {
+          messages = fetchedMessages;
+          isSending = false;
+        });
+        _scrollToBottom();
+        
+        print('[圖片上傳] 圖片消息發送成功');
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(const SnackBar(content: Text('圖片已發送')));
+      } else {
+        setState(() {
+          isSending = false;
+        });
+      }
         
     } catch (e) {
-      print('上傳圖片錯誤: $e');
+      print('[圖片上傳] 上傳錯誤: $e');
       setState(() {
         isSending = false;
       });

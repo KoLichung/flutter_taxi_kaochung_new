@@ -47,7 +47,7 @@ class _CurrentTaskState extends State<CurrentTask> {
   String? userToken;
   bool isRequesting = false;
   bool isAddressCopied = false;
-  int unreadMessageCount = 2; // 假數據：未讀消息數
+  int unreadMessageCount = 0; // 未讀消息數（從 API 獲取）
 
   Timer? _fetchTimer;
 
@@ -160,10 +160,8 @@ class _CurrentTaskState extends State<CurrentTask> {
                                 _fetchCaseState(userToken!, theCase.id!);
                               });
                               
-                              // 更新未讀數
-                              setState(() {
-                                unreadMessageCount = 0; // 假設已讀
-                              });
+                              // 立即刷新一次以更新未讀數
+                              _fetchCaseState(userToken!, theCase.id!);
                             });
                           },
                         ),
@@ -192,6 +190,9 @@ class _CurrentTaskState extends State<CurrentTask> {
                             _fetchTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
                               _fetchCaseState(userToken!, theCase.id!);
                             });
+                            
+                            // 立即刷新一次以更新未讀數
+                            _fetchCaseState(userToken!, theCase.id!);
                           });
                         },
                       ),
@@ -445,7 +446,7 @@ class _CurrentTaskState extends State<CurrentTask> {
   }
 
   Future _fetchCaseState(String token, int caseId) async {
-    String path = ServerApi.PATH_GET_CASE_DETAIL;
+    String path = ServerApi.PATH_GET_CASE_STATE_WITH_NEXT_CASE;
     print(token);
     try {
       final queryParameters = {
@@ -454,14 +455,27 @@ class _CurrentTaskState extends State<CurrentTask> {
 
       final response = await http.get(
         ServerApi.standard(path: path,queryParameters: queryParameters),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': 'token $token'
+        },
       );
 
       // print(response.body);
 
       Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
-      Case currentCase = Case.fromJson(map);
-      print('case state ${currentCase.caseState}');
-      if(currentCase.caseState=='canceled'){
+      String currentCaseState = map['current_case_state'];
+      print('current case state $currentCaseState');
+      
+      // 更新未讀消息數
+      if (map.containsKey('case_message_unread_count')) {
+        setState(() {
+          unreadMessageCount = map['case_message_unread_count'] ?? 0;
+        });
+        print('[CurrentTask] 未讀消息數: $unreadMessageCount');
+      }
+      
+      if(currentCaseState == 'canceled'){
         if(_fetchTimer!=null){
           _fetchTimer!.cancel();
           _fetchTimer = null;

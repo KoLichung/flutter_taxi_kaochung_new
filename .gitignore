@@ -48,3 +48,4 @@ app.*.map.json
 # AWS Configuration files
 lib/config/amplifyconfiguration.dart
 lib/config/aws_config.dart
+lib/config/aws_credentials.dart
