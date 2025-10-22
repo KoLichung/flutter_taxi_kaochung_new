@@ -186,8 +186,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
-  amplify_auth_cognito: 76b5a54f05f66f69966b468b8121a0dd33a32c70
-  amplify_secure_storage: be403397a8ba39f5e0f2a05303b3ca03b53b9ee9
+  amplify_auth_cognito: b76a0e367489da2b9a3c6e5a8ec74a72a0a7cc2f
+  amplify_secure_storage: ede2a5027299bab196b8baa030ed3f4cf50ce9a9
   audioplayers_darwin: 877d9a4d06331c5c374595e46e16453ac7eafa40
   background_fetch: 39f11371c0dce04b001c4bfd5e782bcccb0a85e2
   CocoaLumberjack: 6a459bc897d6d80bd1b8c78482ec7ad05dffc3f0

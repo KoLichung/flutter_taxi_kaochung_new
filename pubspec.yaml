@@ -57,13 +57,16 @@ dependencies:
   liquid_pull_to_refresh: ^3.0.1
   sqflite: ^2.3.0
   path_provider: ^2.1.1
-  path: ^1.8.3
   permission_handler: ^11.3.1
-  amplify_flutter: ^1.8.0
-  amplify_storage_s3: ^1.8.0
-  amplify_auth_cognito: ^1.8.0
+  amplify_flutter: ^2.0.0
+  amplify_storage_s3: ^2.0.0
+  amplify_auth_cognito: ^2.0.0
   badges: ^3.1.2
   image_picker: ^1.0.7
+  # AWS S3 上傳
+  minio: ^3.5.8
+  path: ^1.9.0
+  mime: ^1.0.5
 
 dev_dependencies:
   flutter_test:

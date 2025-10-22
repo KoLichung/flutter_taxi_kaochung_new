@@ -317,55 +317,75 @@ Authorization: Token abc123...
 
 ---
 
-### 4. 获取图片上传 URL
+### 4. 上传图片（使用 AWS Amplify SDK）
 
-在上传图片之前，先调用此 API 获取 S3 上传 URL 和 image_key。
+**重要**: 前端使用 AWS Amplify SDK 直接上传图片到 S3，不需要调用后端 API 获取上传 URL。
 
-**端点**: `POST /api/dispatch/cases/{case_id}/messages/upload-url/`
+**Flutter 端实现步骤**:
 
-**路径参数**:
-- `case_id`: Case ID
+1. **配置 AWS Amplify**:
+```dart
+import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:amplify_storage_s3/amplify_storage_s3.dart';
 
-**请求体**:
-```json
-{
-    "filename": "location.jpg",
-    "content_type": "image/jpeg"
+// 在 main.dart 中配置
+await Amplify.addPlugins([
+  AmplifyStorageS3()
+]);
+await Amplify.configure(amplifyconfig);
+```
+
+2. **上传图片**:
+```dart
+Future<Map<String, String>> uploadImage(File imageFile, int caseId, int userId) async {
+  // 生成 S3 key
+  final timestamp = DateTime.now().millisecondsSinceEpoch;
+  final filename = path.basename(imageFile.path);
+  final ext = path.extension(filename).toLowerCase();
+  final s3Key = 'case_messages/$caseId/$userId/${timestamp}_$ext';
+  
+  try {
+    // 使用 Amplify Storage 上传
+    final result = await Amplify.Storage.uploadFile(
+      localFile: AWSFile.fromPath(imageFile.path),
+      key: s3Key,
+      options: StorageUploadFileOptions(
+        accessLevel: StorageAccessLevel.guest,
+        metadata: {
+          'caseId': caseId.toString(),
+          'userId': userId.toString(),
+        }
+      )
+    );
+    
+    // 获取图片 URL
+    final urlResult = await Amplify.Storage.getUrl(key: s3Key);
+    
+    return {
+      'image_key': s3Key,
+      'image_url': urlResult.url.toString(),
+    };
+  } catch (e) {
+    print('Upload error: $e');
+    throw e;
+  }
 }
 ```
 
-**请求字段说明**:
-- `filename`: 必填，原始文件名
-- `content_type`: 可选，MIME 类型，默认为 `"image/jpeg"`
+3. **创建图片消息**（见下一节）
 
-**响应示例**:
-```json
-{
-    "upload_url": "https://your-bucket.s3.ap-northeast-1.amazonaws.com/case_messages/123/456/20250110_143025_a1b2c3d4.jpg",
-    "image_key": "case_messages/123/456/20250110_143025_a1b2c3d4.jpg",
-    "image_url": "https://your-bucket.s3.ap-northeast-1.amazonaws.com/case_messages/123/456/20250110_143025_a1b2c3d4.jpg",
-    "expires_in": 300,
-    "note": "S3 configuration pending - URL is placeholder"
-}
+**S3 Key 格式建议**:
+```
+case_messages/{case_id}/{user_id}/{timestamp}_{random}.{ext}
 ```
 
-**响应字段说明**:
-- `upload_url`: S3 预签名上传 URL（用于 PUT 请求上传文件）
-- `image_key`: S3 文件 key（创建消息时需要）
-- `image_url`: 访问图片的 URL（创建消息时需要）
-- `expires_in`: URL 有效期（秒）
-- `note`: 提示信息（实际使用时此字段会移除）
-
-**使用流程**:
-1. 调用此 API 获取上传 URL
-2. 使用 PUT 方法将图片上传到 `upload_url`
-3. 上传成功后，调用创建图片消息 API
+示例：`case_messages/123/456/1729415625000_photo.jpg`
 
 ---
 
 ### 5. 发送图片消息
 
-图片上传成功后，创建一条图片消息记录。
+使用 AWS Amplify SDK 上传图片成功后，创建一条图片消息记录。
 
 **端点**: `POST /api/dispatch/cases/{case_id}/messages/`
 
@@ -376,22 +396,43 @@ Authorization: Token abc123...
 ```json
 {
     "message_type": "image",
-    "image_key": "case_messages/123/456/20250110_143025_a1b2c3d4.jpg",
-    "image_url": "https://your-bucket.s3.amazonaws.com/case_messages/123/456/20250110_143025_a1b2c3d4.jpg",
+    "image_key": "case_messages/123/456/1729415625000_photo.jpg",
+    "image_url": "https://your-bucket-name.s3.ap-northeast-1.amazonaws.com/case_messages/123/456/1729415625000_photo.jpg",
     "content": "这是位置照片"
 }
 ```
 
 **请求字段说明**:
 - `message_type`: 必填，固定为 `"image"`
-- `image_key`: 必填，从 upload-url API 获取的 key
-- `image_url`: 必填，从 upload-url API 获取的 URL
+- `image_key`: 必填，从 AWS Amplify 上传后获得的 S3 key
+- `image_url`: 必填，从 AWS Amplify 上传后获得的图片 URL
 - `content`: 可选，图片说明文字
 
 **自动设置的字段**（不需要在请求体中提供）:
 - `case`: 自动从 URL 路径参数 `case_id` 获取
 - `sender`: 自动设置为当前认证用户
 - `created_at`: 自动设置为当前时间
+
+**完整 Flutter 示例**:
+```dart
+// 1. 上传图片到 S3
+final uploadResult = await uploadImage(imageFile, caseId, userId);
+
+// 2. 创建图片消息
+final response = await http.post(
+  Uri.parse('$baseUrl/api/dispatch/cases/$caseId/messages/'),
+  headers: {
+    'Authorization': 'Token $token',
+    'Content-Type': 'application/json',
+  },
+  body: jsonEncode({
+    'message_type': 'image',
+    'image_key': uploadResult['image_key'],
+    'image_url': uploadResult['image_url'],
+    'content': '位置照片',
+  }),
+);
+```
 
 **响应示例**:
 ```json
@@ -528,46 +569,49 @@ fetch('/api/dispatch/cases/123/messages/', {
 });
 ```
 
-### 场景 2: 发送图片消息
+### 场景 2: 发送图片消息（Flutter + AWS Amplify）
 
-```javascript
-// 1. 获取上传 URL
-const uploadResponse = await fetch('/api/dispatch/cases/123/messages/upload-url/', {
-    method: 'POST',
-    headers: {
-        'Authorization': 'Token abc123...',
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-        filename: 'location.jpg',
-        content_type: 'image/jpeg'
-    })
-});
-const { upload_url, image_key, image_url } = await uploadResponse.json();
-
-// 2. 上传图片到 S3
-await fetch(upload_url, {
-    method: 'PUT',
-    headers: {
-        'Content-Type': 'image/jpeg'
-    },
-    body: imageFile  // File or Blob 对象
-});
-
-// 3. 创建图片消息记录
-await fetch('/api/dispatch/cases/123/messages/', {
-    method: 'POST',
-    headers: {
-        'Authorization': 'Token abc123...',
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-        message_type: 'image',
-        image_key: image_key,
-        image_url: image_url,
-        content: '这是位置照片'
-    })
-});
+```dart
+// 1. 使用 AWS Amplify 上传图片到 S3
+Future<void> sendImageMessage(File imageFile, int caseId) async {
+  try {
+    // 生成 S3 key
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final ext = path.extension(imageFile.path).toLowerCase();
+    final s3Key = 'case_messages/$caseId/$userId/$timestamp$ext';
+    
+    // 上传到 S3
+    final uploadResult = await Amplify.Storage.uploadFile(
+      localFile: AWSFile.fromPath(imageFile.path),
+      key: s3Key,
+    );
+    
+    // 获取图片 URL
+    final urlResult = await Amplify.Storage.getUrl(key: s3Key);
+    final imageUrl = urlResult.url.toString();
+    
+    // 2. 创建图片消息记录
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/dispatch/cases/$caseId/messages/'),
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'message_type': 'image',
+        'image_key': s3Key,
+        'image_url': imageUrl,
+        'content': '位置照片',
+      }),
+    );
+    
+    if (response.statusCode == 201) {
+      print('图片消息发送成功');
+    }
+  } catch (e) {
+    print('发送图片失败: $e');
+  }
+}
 ```
 
 ### 场景 3: 打开聊天页面
@@ -651,21 +695,76 @@ if (data.case_message_unread_count > 0) {
 3. **排序**: 
    - 聊天列表按最新消息时间排序（从新到旧）
    - 消息列表按创建时间排序（从新到旧）
-4. **S3 配置**: 
-   - 目前 `upload-url` API 返回的是占位符 URL
-   - 实际使用时需要配置真实的 AWS S3 credentials
-   - 图片上传流程：获取 URL → 上传到 S3 → 创建消息记录
+4. **图片上传**: 
+   - **前端使用 AWS Amplify SDK 直接上传到 S3**
+   - 后端不处理图片上传，只记录消息
+   - 上传流程：Flutter Amplify 上传 → 获取 URL 和 key → 调用后端创建消息
+   - `upload-url` 端点已废弃（返回 410 Gone）
 5. **权限**: 
    - Case 消息列表: 只显示 dispatch 是当前用户的 Case
    - Case 消息详情: 只有 Case 的 dispatch 或 driver 可以查看和发送消息
    - 自动标记非自己发送的消息为已读
-6. **图片**: 
+6. **图片限制**: 
    - 建议图片大小限制在 5MB 以内
    - 支持的格式: JPEG, PNG, GIF
+   - S3 key 格式: `case_messages/{case_id}/{user_id}/{timestamp}.{ext}`
+
+---
+
+## 司机端 API 集成
+
+### 案件状态查询 API（含未读消息数）
+
+司机端调用案件状态查询 API 时，也会返回未读案件消息数。
+
+**端点**: `GET /api/case_state_with_next_case?case_id={case_id}`
+
+**所属模块**: `taxiApi`（司机端 API）
+
+**请求参数**:
+- `case_id`: 当前 Case ID
+
+**响应示例**:
+```json
+{
+    "current_case_state": "on_road",
+    "query_next_case": null,
+    "confirmed_next_case": null,
+    "case_message_unread_count": 5
+}
+```
+
+**响应字段说明**:
+- `current_case_state`: 当前 Case 的状态
+- `query_next_case`: 待确认的下一个 Case（如果有）
+- `confirmed_next_case`: 已确认的下一个 Case（目前功能已关闭）
+- **`case_message_unread_count`**: 司机收到的未读案件消息总数
+
+**未读消息计算逻辑**:
+- 统计司机作为接单司机（`case.user`）的所有 Case
+- 排除司机自己发送的消息
+- 只计算未读消息（`is_read=False`）
+
+**用途**:
+- 司机 app 在查询案件状态时，同时获取未读消息数
+- 可用于在司机端 UI 显示消息通知徽章
+- 与派单端的 `case_message_unread_count` 类似，但针对司机端
 
 ---
 
 ## 更新日志
+
+- **2025-10-21 v1.4**: 司机端集成
+  - **新增**: 司机端 API `/api/case_state_with_next_case` 现在也返回 `case_message_unread_count`
+  - **司机端**: 统计司机作为接单司机的所有 Case 中的未读消息数
+  - **用途**: 司机端 app 可以在查询案件状态时同时获取未读消息数
+  - **文档**: 添加司机端 API 集成说明
+
+- **2025-10-21 v1.3**: 图片上传架构调整
+  - **重大变更**: 图片上传改为前端直接使用 AWS Amplify SDK
+  - **废弃**: `upload-url` 端点已废弃（返回 410 Gone）
+  - **简化**: 后端不再处理图片上传，只记录消息
+  - **文档**: 添加完整的 Flutter + Amplify 示例代码
 
 - **2025-10-20 v1.2**: 重要更新
   - **变更**: Case 消息列表现在返回所有派出的 Case（包括无消息的 Case）
