@@ -229,20 +229,21 @@ class RouteExportService {
     debugPrint('[RouteExport] 開始使用 Amplify 上傳檔案到 S3，Key: $s3Key');
 
     try {
+      // Amplify 2.0 使用 StoragePath 而不是 key 字符串
       final uploadFileOperation = Amplify.Storage.uploadFile(
         localFile: AWSFile.fromPath(dbFile.path),
-        key: s3Key,
+        path: StoragePath.fromString(s3Key), // 使用 StoragePath 替代 key
         onProgress: (progress) {
           debugPrint('[RouteExport] 上傳進度: ${(progress.fractionCompleted * 100).toStringAsFixed(2)}%');
         },
         options: const StorageUploadFileOptions(
-          accessLevel: StorageAccessLevel.guest, // guest level 允許公開存取
-          // Amplify guest level 檔案預設就是公開的，但需要正確的 S3 設定
+          // Amplify 2.0 中 accessLevel 已被移除，使用路徑前綴來控制訪問級別
+          // 如果需要公開訪問，確保 s3Key 以 'public/' 開頭
         ),
       );
       
       final result = await uploadFileOperation.result;
-      debugPrint('[RouteExport] Amplify 上傳成功: Key = ${result.uploadedItem.key}');
+      debugPrint('[RouteExport] Amplify 上傳成功: Path = ${result.uploadedItem.path}');
       return true;
 
     } on StorageException catch (e) {
