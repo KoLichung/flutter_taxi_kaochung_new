@@ -54,6 +54,12 @@
 	<string>這個 App 需要知道您的位置，以回報案件狀態。This app needs access to location to update case status.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>這個 App 需要知道您的移動狀態，以告訴您附近案件。This app needs access your motion to notify your nearby case.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>這個 App 需要使用相機來拍攝照片，以便與派單員溝通。This app needs camera access to take photos for communication with dispatcher.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>這個 App 需要存取相簿來選擇照片，以便與派單員溝通。This app needs photo library access to select photos for communication with dispatcher.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>這個 App 需要存取相簿來保存照片。This app needs to save photos to your photo library.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>
