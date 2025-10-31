@@ -1,7 +1,7 @@
 class ServerApi{
-  // static const _HOST ='127.0.0.1:8000';
+  static const _HOST ='127.0.0.1:8000';
 
-  static const _HOST ='app.24hcartaiwan.com';
+  // static const _HOST ='app.24hcartaiwan.com';
 
   static const PATH_CREATE_USER = '/api/user/create/';
   static const PATH_USER_TOKEN = '/api/user/token/';
@@ -44,8 +44,8 @@ class ServerApi{
   static const PATH_CASE_MESSAGE_CREATE = '/api/dispatch/cases/{case_id}/messages/';
 
   static Uri standard({String? path, Map<String, String>? queryParameters}) {
-    print(Uri.https(_HOST, '$path', queryParameters));
-    return Uri.https(_HOST, '$path', queryParameters);
+    print(Uri.http(_HOST, '$path', queryParameters));
+    return Uri.http(_HOST, '$path', queryParameters);
   }
 
 }

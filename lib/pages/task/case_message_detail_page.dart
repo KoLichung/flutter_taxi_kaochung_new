@@ -136,86 +136,11 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
       });
       ScaffoldMessenger.of(context)
         ..removeCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('載入消息失敗')));
+        ..showSnackBar(const SnackBar(
+          content: Text('載入消息失敗'),
+          duration: Duration(milliseconds: 800),
+        ));
     }
-  }
-
-  // 生成假消息數據
-  List<CaseMessage> _generateFakeMessages() {
-    final now = DateTime.now();
-    return [
-      CaseMessage(
-        id: 1,
-        caseId: widget.theCase.id,
-        sender: 101,
-        senderName: widget.theCase.dispatcherNickName ?? '派單員',
-        senderNickName: widget.theCase.dispatcherNickName ?? '小李',
-        messageType: 'text',
-        content: '您好，請問現在到哪裡了？',
-        isRead: true,
-        readAt: now.subtract(const Duration(minutes: 5)).toIso8601String(),
-        createdAt: now.subtract(const Duration(minutes: 10)).toIso8601String(),
-      ),
-      CaseMessage(
-        id: 2,
-        caseId: widget.theCase.id,
-        sender: 789, // 假設當前用戶ID是789
-        senderName: '王司機',
-        senderNickName: '老王',
-        messageType: 'text',
-        content: '我剛剛出發，大約10分鐘會到',
-        isRead: true,
-        readAt: now.subtract(const Duration(minutes: 4)).toIso8601String(),
-        createdAt: now.subtract(const Duration(minutes: 8)).toIso8601String(),
-      ),
-      CaseMessage(
-        id: 3,
-        caseId: widget.theCase.id,
-        sender: 101,
-        senderName: widget.theCase.dispatcherNickName ?? '派單員',
-        senderNickName: widget.theCase.dispatcherNickName ?? '小李',
-        messageType: 'text',
-        content: '好的，客人說他在路口等',
-        isRead: true,
-        readAt: now.subtract(const Duration(minutes: 3)).toIso8601String(),
-        createdAt: now.subtract(const Duration(minutes: 6)).toIso8601String(),
-      ),
-      CaseMessage(
-        id: 4,
-        caseId: widget.theCase.id,
-        sender: 789,
-        senderName: '王司機',
-        senderNickName: '老王',
-        messageType: 'image',
-        content: '這是位置照片',
-        imageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4',
-        isRead: true,
-        readAt: now.subtract(const Duration(minutes: 3, seconds: 30)).toIso8601String(),
-        createdAt: now.subtract(const Duration(minutes: 5)).toIso8601String(),
-      ),
-      CaseMessage(
-        id: 5,
-        caseId: widget.theCase.id,
-        sender: 101,
-        senderName: widget.theCase.dispatcherNickName ?? '派單員',
-        senderNickName: widget.theCase.dispatcherNickName ?? '小李',
-        messageType: 'text',
-        content: '請問客人上車了嗎？',
-        isRead: false,
-        createdAt: now.subtract(const Duration(minutes: 2)).toIso8601String(),
-      ),
-      CaseMessage(
-        id: 6,
-        caseId: widget.theCase.id,
-        sender: 101,
-        senderName: widget.theCase.dispatcherNickName ?? '派單員',
-        senderNickName: widget.theCase.dispatcherNickName ?? '小李',
-        messageType: 'text',
-        content: '如果客人還沒出現，請通知我一下',
-        isRead: false,
-        createdAt: now.subtract(const Duration(minutes: 1)).toIso8601String(),
-      ),
-    ];
   }
 
   // 發送消息
@@ -246,7 +171,10 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
         
         ScaffoldMessenger.of(context)
           ..removeCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('訊息已發送')));
+          ..showSnackBar(const SnackBar(
+            content: Text('訊息已發送'),
+            duration: Duration(milliseconds: 800),
+          ));
       } else {
         setState(() {
           isSending = false;
@@ -258,7 +186,10 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
       });
       ScaffoldMessenger.of(context)
         ..removeCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('發送失敗，請重試')));
+        ..showSnackBar(const SnackBar(
+          content: Text('發送失敗，請重試'),
+          duration: Duration(milliseconds: 800),
+        ));
     }
   }
 
@@ -632,7 +563,10 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
       });
       ScaffoldMessenger.of(context)
         ..removeCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('選擇圖片失敗')));
+        ..showSnackBar(const SnackBar(
+          content: Text('選擇圖片失敗'),
+          duration: Duration(milliseconds: 800),
+        ));
     }
   }
 
@@ -680,7 +614,10 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
         print('[圖片上傳] 圖片消息發送成功');
         ScaffoldMessenger.of(context)
           ..removeCurrentSnackBar()
-          ..showSnackBar(const SnackBar(content: Text('圖片已發送')));
+          ..showSnackBar(const SnackBar(
+            content: Text('圖片已發送'),
+            duration: Duration(milliseconds: 800),
+          ));
       } else {
         setState(() {
           isSending = false;
@@ -694,88 +631,15 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
       });
       ScaffoldMessenger.of(context)
         ..removeCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('圖片上傳失敗')));
+        ..showSnackBar(const SnackBar(
+          content: Text('圖片上傳失敗'),
+          duration: Duration(milliseconds: 800),
+        ));
     }
   }
 
-  // API: 獲取上傳 URL（使用假數據）
-  Future<Map<String, String>?> _getUploadUrl(String filename) async {
-    try {
-      print('[API - 假數據] 步驟1: 請求上傳 URL...');
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      // TODO: 實際 API 調用
-      // final userModel = context.read<UserModel>();
-      // final path = ServerApi.PATH_CASE_MESSAGE_UPLOAD_URL.replaceAll('{case_id}', widget.theCase.id.toString());
-      // final response = await http.post(
-      //   ServerApi.standard(path: path),
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': 'Token ${userModel.token}',
-      //   },
-      //   body: jsonEncode({
-      //     'filename': filename,
-      //     'content_type': 'image/jpeg',
-      //   }),
-      // );
-      // 
-      // if (response.statusCode == 200) {
-      //   final data = jsonDecode(utf8.decode(response.body.runes.toList()));
-      //   return {
-      //     'upload_url': data['upload_url'],
-      //     'image_key': data['image_key'],
-      //     'image_url': data['image_url'],
-      //   };
-      // }
-      
-      // 假數據返回
-      final fakeData = {
-        'upload_url': 'https://fake-bucket.s3.amazonaws.com/case_messages/${widget.theCase.id}/789/fake_image.jpg',
-        'image_key': 'case_messages/${widget.theCase.id}/789/fake_image_${DateTime.now().millisecondsSinceEpoch}.jpg',
-        'image_url': 'https://fake-bucket.s3.amazonaws.com/case_messages/${widget.theCase.id}/789/fake_image.jpg',
-      };
-      
-      print('[API - 假數據] 獲取上傳URL成功: ${fakeData['upload_url']}');
-      return fakeData;
-      
-    } catch (e) {
-      print('[API] 獲取上傳URL錯誤: $e');
-      return null;
-    }
-  }
 
-  // API: 上傳圖片到 S3（使用假數據）
-  Future<bool> _uploadToS3(String uploadUrl, XFile imageFile) async {
-    try {
-      print('[API - 假數據] 步驟2: 上傳圖片到 S3...');
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // TODO: 實際 API 調用
-      // final bytes = await imageFile.readAsBytes();
-      // final response = await http.put(
-      //   Uri.parse(uploadUrl),
-      //   headers: {
-      //     'Content-Type': 'image/jpeg',
-      //   },
-      //   body: bytes,
-      // );
-      // 
-      // if (response.statusCode == 200) {
-      //   print('[API] 上傳到 S3 成功');
-      //   return true;
-      // }
-      
-      // 假數據：模擬上傳成功
-      print('[API - 假數據] 上傳到 S3 成功');
-      return true;
-      
-    } catch (e) {
-      print('[API] 上傳到S3錯誤: $e');
-      return false;
-    }
-  }
-
-  // API: 創建圖片消息記錄（使用假數據）
+  // API: 創建圖片消息記錄
   Future<bool> _createImageMessage(String imageKey, String imageUrl, String content) async {
     try {
       print('[API] 創建圖片消息記錄...');
