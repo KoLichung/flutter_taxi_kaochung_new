@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:saver_gallery/saver_gallery.dart';
 import '../../color.dart';
 import '../../models/case.dart';
 import '../../models/case_message.dart';
@@ -829,7 +833,7 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
 class _FullScreenImageViewer extends StatelessWidget {
   final String imageUrl;
 
-  const _FullScreenImageViewer({Key? key, required this.imageUrl}) : super(key: key);
+  const _FullScreenImageViewer({required this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -838,6 +842,12 @@ class _FullScreenImageViewer extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: () => _downloadImage(context),
+          ),
+        ],
       ),
       body: Container(
         // 向上偏移 100px，使圖片在視覺中心偏上
@@ -877,6 +887,120 @@ class _FullScreenImageViewer extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _downloadImage(BuildContext context) async {
+    try {
+      // 檢查權限狀態
+      bool hasPermission = false;
+      
+      if (Platform.isAndroid) {
+        final deviceInfoPlugin = DeviceInfoPlugin();
+        final deviceInfo = await deviceInfoPlugin.androidInfo;
+        final sdkInt = deviceInfo.version.sdkInt;
+        
+        if (sdkInt < 29) {
+          hasPermission = await Permission.storage.status.isGranted;
+        } else {
+          hasPermission = true; // Android 10+ 不需要特殊權限
+        }
+      } else {
+        // iOS - 檢查添加到相簿的權限
+        hasPermission = await Permission.photosAddOnly.status.isGranted;
+      }
+
+      // 如果沒有權限，提示用戶並提供跳轉到設定的選項
+      if (!hasPermission) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('需要相簿權限才能保存圖片'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+              action: SnackBarAction(
+                label: '開啟設定',
+                textColor: Colors.white,
+                onPressed: () {
+                  openAppSettings();
+                },
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      // 顯示保存中提示
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('正在保存圖片...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      SaveResult result;
+      final fileName = "taxi_dispatch_${DateTime.now().millisecondsSinceEpoch}.jpg";
+      
+      if (imageUrl.startsWith('http')) {
+        // 下載並保存網絡圖片
+        final response = await http.get(Uri.parse(imageUrl));
+        if (response.statusCode == 200) {
+          result = await SaverGallery.saveImage(
+            Uint8List.fromList(response.bodyBytes),
+            quality: 100,
+            fileName: fileName,
+            androidRelativePath: "Pictures/TaxiDispatch",
+            skipIfExists: false,
+          );
+        } else {
+          throw Exception('下載圖片失敗');
+        }
+      } else {
+        // 保存本地圖片
+        final bytes = await File(imageUrl).readAsBytes();
+        result = await SaverGallery.saveImage(
+          Uint8List.fromList(bytes),
+          quality: 100,
+          fileName: fileName,
+          androidRelativePath: "Pictures/TaxiDispatch",
+          skipIfExists: false,
+        );
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        if (result.isSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ 圖片已保存到相簿'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ 保存圖片失敗: ${result.errorMessage ?? "未知錯誤"}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ 保存圖片失敗: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 }
 

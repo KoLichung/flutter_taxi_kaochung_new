@@ -10,10 +10,11 @@ apply from: "${background_geolocation.projectDir}/background_geolocation.gradle"
 
 android {
     namespace = "com.chijia.flutter_taxi_chinghsien"
-    compileSdk = 34
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        coreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
@@ -28,7 +29,7 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 71
         versionName = '1.0.70'
     }
@@ -47,4 +48,8 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.3'
 }
