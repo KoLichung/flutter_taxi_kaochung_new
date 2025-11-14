@@ -891,7 +891,7 @@ class _FullScreenImageViewer extends StatelessWidget {
 
   Future<void> _downloadImage(BuildContext context) async {
     try {
-      // 檢查權限狀態
+      // 請求權限
       bool hasPermission = false;
       
       if (Platform.isAndroid) {
@@ -900,13 +900,17 @@ class _FullScreenImageViewer extends StatelessWidget {
         final sdkInt = deviceInfo.version.sdkInt;
         
         if (sdkInt < 29) {
-          hasPermission = await Permission.storage.status.isGranted;
+          // Android 9 及以下需要 storage 權限
+          final status = await Permission.storage.request();
+          hasPermission = status.isGranted;
         } else {
-          hasPermission = true; // Android 10+ 不需要特殊權限
+          // Android 10+ 使用分區儲存，不需要特殊權限
+          hasPermission = true;
         }
       } else {
-        // iOS - 檢查添加到相簿的權限
-        hasPermission = await Permission.photosAddOnly.status.isGranted;
+        // iOS - 請求添加到相簿的權限
+        final status = await Permission.photosAddOnly.request();
+        hasPermission = status.isGranted;
       }
 
       // 如果沒有權限，提示用戶並提供跳轉到設定的選項
