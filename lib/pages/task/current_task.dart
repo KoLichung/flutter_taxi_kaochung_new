@@ -19,6 +19,8 @@ import '../../widgets/custom_small_oulined_text.dart';
 import 'new_passenger_dialog.dart';
 import 'on_task.dart';
 import 'package:map_launcher/map_launcher.dart';
+import 'case_message_detail_page.dart';
+import 'package:badges/badges.dart' as badges;
 
 
 
@@ -45,6 +47,7 @@ class _CurrentTaskState extends State<CurrentTask> {
   String? userToken;
   bool isRequesting = false;
   bool isAddressCopied = false;
+  int unreadMessageCount = 0; // 未讀消息數（從 API 獲取）
 
   Timer? _fetchTimer;
 
@@ -117,6 +120,84 @@ class _CurrentTaskState extends State<CurrentTask> {
                 const Text('24h派車'),
               ],
             ),
+            actions: [
+              // 消息圖標按鈕
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: unreadMessageCount > 0
+                    ? badges.Badge(
+                        badgeContent: Text(
+                          unreadMessageCount > 99 ? '99+' : unreadMessageCount.toString(),
+                          style: const TextStyle(color: Colors.white, fontSize: 10),
+                        ),
+                        badgeStyle: const badges.BadgeStyle(
+                          badgeColor: Colors.red,
+                          padding: EdgeInsets.all(4),
+                        ),
+                        position: badges.BadgePosition.topEnd(top: 0, end: 0),
+                        child: IconButton(
+                          icon: const Icon(Icons.message),
+                          onPressed: () {
+                            // 進入消息頁面前，暫停案件狀態輪詢
+                            print('[CurrentTask] 進入消息頁面，暫停案件狀態輪詢');
+                            if (_fetchTimer != null) {
+                              _fetchTimer!.cancel();
+                              _fetchTimer = null;
+                            }
+                            
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CaseMessageDetailPage(
+                                  theCase: theCase,
+                                  unreadCount: unreadMessageCount,
+                                ),
+                              ),
+                            ).then((value) {
+                              // 從消息頁返回後，恢復案件狀態輪詢
+                              print('[CurrentTask] 返回任務頁面，恢復案件狀態輪詢');
+                              _fetchTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+                                _fetchCaseState(userToken!, theCase.id!);
+                              });
+                              
+                              // 立即刷新一次以更新未讀數
+                              _fetchCaseState(userToken!, theCase.id!);
+                            });
+                          },
+                        ),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.message),
+                        onPressed: () {
+                          // 進入消息頁面前，暫停案件狀態輪詢
+                          print('[CurrentTask] 進入消息頁面，暫停案件狀態輪詢');
+                          if (_fetchTimer != null) {
+                            _fetchTimer!.cancel();
+                            _fetchTimer = null;
+                          }
+                          
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CaseMessageDetailPage(
+                                theCase: theCase,
+                                unreadCount: unreadMessageCount,
+                              ),
+                            ),
+                          ).then((value) {
+                            // 從消息頁返回後，恢復案件狀態輪詢
+                            print('[CurrentTask] 返回任務頁面，恢復案件狀態輪詢');
+                            _fetchTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+                              _fetchCaseState(userToken!, theCase.id!);
+                            });
+                            
+                            // 立即刷新一次以更新未讀數
+                            _fetchCaseState(userToken!, theCase.id!);
+                          });
+                        },
+                      ),
+              ),
+            ],
           ),
           body: SingleChildScrollView(
             child:Consumer<TaskModel>(builder: (context, taskModel, child){
@@ -365,7 +446,7 @@ class _CurrentTaskState extends State<CurrentTask> {
   }
 
   Future _fetchCaseState(String token, int caseId) async {
-    String path = ServerApi.PATH_GET_CASE_DETAIL;
+    String path = ServerApi.PATH_GET_CASE_STATE_WITH_NEXT_CASE;
     print(token);
     try {
       final queryParameters = {
@@ -374,14 +455,27 @@ class _CurrentTaskState extends State<CurrentTask> {
 
       final response = await http.get(
         ServerApi.standard(path: path,queryParameters: queryParameters),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': 'token $token'
+        },
       );
 
       // print(response.body);
 
       Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
-      Case currentCase = Case.fromJson(map);
-      print('case state ${currentCase.caseState}');
-      if(currentCase.caseState=='canceled'){
+      String currentCaseState = map['current_case_state'];
+      print('current case state $currentCaseState');
+      
+      // 更新未讀消息數
+      if (map.containsKey('case_message_unread_count')) {
+        setState(() {
+          unreadMessageCount = map['case_message_unread_count'] ?? 0;
+        });
+        print('[CurrentTask] 未讀消息數: $unreadMessageCount');
+      }
+      
+      if(currentCaseState == 'canceled'){
         if(_fetchTimer!=null){
           _fetchTimer!.cancel();
           _fetchTimer = null;

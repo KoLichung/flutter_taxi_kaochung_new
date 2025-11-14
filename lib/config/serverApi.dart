@@ -1,6 +1,5 @@
 class ServerApi{
   // static const _HOST ='127.0.0.1:8000';
-  // static const _HOST = '8364-2402-7500-95e-7aa0-c1e8-2f8c-55ca-3652.ngrok-free.app';
 
   static const _HOST ='app.24hcartaiwan.com';
 
@@ -35,6 +34,14 @@ class ServerApi{
   static const PATH_GEOCODE = 'https://maps.googleapis.com/maps/api/geocode/json?address=';
 
   static const PATH_GET_CURRENT_VERSION= '/api/get_current_version';
+
+  // Case Message API (注意: base URL 是 /api/dispatch/)
+  static const PATH_CASE_MESSAGES = '/api/dispatch/case-messages/';
+  static const PATH_CASE_MESSAGE_LIST = '/api/dispatch/cases/{case_id}/messages/';
+  static const PATH_CASE_MESSAGE_UNREAD_COUNT = '/api/dispatch/cases/{case_id}/messages/unread-count/';
+  static const PATH_CASE_MESSAGE_MARK_READ = '/api/dispatch/cases/{case_id}/messages/mark-read/';
+  static const PATH_CASE_MESSAGE_UPLOAD_URL = '/api/dispatch/cases/{case_id}/messages/upload-url/';
+  static const PATH_CASE_MESSAGE_CREATE = '/api/dispatch/cases/{case_id}/messages/';
 
   static Uri standard({String? path, Map<String, String>? queryParameters}) {
     print(Uri.https(_HOST, '$path', queryParameters));

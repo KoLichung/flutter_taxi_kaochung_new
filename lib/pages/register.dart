@@ -142,7 +142,8 @@ class _RegisterState extends State<Register> {
                 validatorTextFormField('*手機號碼','',phoneNumberController, false, !widget.isEdit),
                 widget.isEdit?Container():validatorTextFormField('*密碼','',pwdController, true, true),
                 registerTextField('身份證字號','',idNumberController, !widget.isEdit),
-                getDriverGender(!widget.isEdit),
+                widget.isEdit ? _buildGroupLabel() : Container(),
+                // getDriverGender(!widget.isEdit),
                 const SizedBox(height: 10,),
                 validatorTextFormField('*車號(ABC-1234,請填 1234)','',carPlateController, false, !widget.isEdit),
                 registerTextField('顏色','白',carColorController, !widget.isEdit),
@@ -390,6 +391,39 @@ class _RegisterState extends State<Register> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGroupLabel() {
+    var userModel = context.read<UserModel>();
+    User? user = userModel.user;
+    String groupLabel = user?.groupLable ?? '';
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('群組'),
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: Colors.black54, width: 1),
+              ),
+            ),
+            child: Text(
+              groupLabel.isEmpty ? '' : groupLabel,
+              style: const TextStyle(
+                fontSize: 18,
+                color: Colors.grey,
+              ),
+            ),
           ),
         ],
       ),

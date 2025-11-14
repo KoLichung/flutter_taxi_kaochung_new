@@ -20,6 +20,7 @@ class User {
   int? violation_time;
   DateTime? penalty_datetime;
   int? main_car_team;
+  String? groupLable;
 
   User(
       {this.id,
@@ -42,6 +43,7 @@ class User {
         this.violation_time,
         this.penalty_datetime,
         this.main_car_team,
+        this.groupLable,
       });
 
   User.fromJson(Map<String, dynamic> json) {
@@ -85,6 +87,11 @@ class User {
       main_car_team = json['main_car_team'];
     }else{
       main_car_team = 0;
+    }
+    if(json['group_lable']!=null){
+      groupLable = json['group_lable'];
+    }else{
+      groupLable = '';
     }
   }
 

@@ -26,6 +26,8 @@ import 'current_task.dart';
 import 'on_task_passenger_off_dialog.dart';
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 import '../../services/route_export_service.dart';
+import 'case_message_detail_page.dart';
+import 'package:badges/badges.dart' as badges;
 
 class OnTask extends StatefulWidget {
 
@@ -46,6 +48,7 @@ class _OnTaskState extends State<OnTask> {
   bool isNextTaskVisible = false;
   bool isRequesting = false;
   bool isAddressCopied = false;
+  int unreadMessageCount = 0; // 未讀消息數（從 API 獲取）
 
   TextEditingController priceController = TextEditingController();
   Timer? _taskTimer;
@@ -243,6 +246,86 @@ class _OnTaskState extends State<OnTask> {
             const Text('24h派車'),
           ],
         ),
+        actions: [
+          // 消息圖標按鈕
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: unreadMessageCount > 0
+                    ? badges.Badge(
+                        badgeContent: Text(
+                          unreadMessageCount > 99 ? '99+' : unreadMessageCount.toString(),
+                          style: const TextStyle(color: Colors.white, fontSize: 10),
+                        ),
+                        badgeStyle: const badges.BadgeStyle(
+                          badgeColor: Colors.red,
+                          padding: EdgeInsets.all(4),
+                        ),
+                        position: badges.BadgePosition.topEnd(top: 0, end: 0),
+                        child: IconButton(
+                          icon: const Icon(Icons.message),
+                          onPressed: () {
+                            // 進入消息頁面前，暫停案件狀態輪詢
+                            print('[OnTask] 進入消息頁面，暫停案件狀態輪詢');
+                            if (_fetchTimer != null) {
+                              _fetchTimer!.cancel();
+                              _fetchTimer = null;
+                            }
+                            
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CaseMessageDetailPage(
+                                  theCase: widget.theCase,
+                                  unreadCount: unreadMessageCount,
+                                ),
+                              ),
+                            ).then((value) {
+                              // 從消息頁返回後，恢復案件狀態輪詢
+                              print('[OnTask] 返回任務頁面，恢復案件狀態輪詢');
+                              var taskModel = context.read<TaskModel>();
+                              _fetchTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+                                _fetchCaseState(userToken!, taskModel.cases.first.id!);
+                              });
+                              
+                              // 立即刷新一次以更新未讀數
+                              _fetchCaseState(userToken!, taskModel.cases.first.id!);
+                            });
+                          },
+                        ),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.message),
+                        onPressed: () {
+                          // 進入消息頁面前，暫停案件狀態輪詢
+                          print('[OnTask] 進入消息頁面，暫停案件狀態輪詢');
+                          if (_fetchTimer != null) {
+                            _fetchTimer!.cancel();
+                            _fetchTimer = null;
+                          }
+                          
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CaseMessageDetailPage(
+                                theCase: widget.theCase,
+                                unreadCount: unreadMessageCount,
+                              ),
+                            ),
+                          ).then((value) {
+                            // 從消息頁返回後，恢復案件狀態輪詢
+                            print('[OnTask] 返回任務頁面，恢復案件狀態輪詢');
+                            var taskModel = context.read<TaskModel>();
+                            _fetchTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+                              _fetchCaseState(userToken!, taskModel.cases.first.id!);
+                            });
+                            
+                            // 立即刷新一次以更新未讀數
+                            _fetchCaseState(userToken!, taskModel.cases.first.id!);
+                          });
+                        },
+                      ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
           child:Consumer<TaskModel>(builder: (context, taskModel, child){
@@ -747,6 +830,14 @@ class _OnTaskState extends State<OnTask> {
 
       String currentCaseState = map['current_case_state'];
       print('current case state $currentCaseState');
+      
+      // 更新未讀消息數
+      if (map.containsKey('case_message_unread_count')) {
+        setState(() {
+          unreadMessageCount = map['case_message_unread_count'] ?? 0;
+        });
+        print('[OnTask] 未讀消息數: $unreadMessageCount');
+      }
 
       if (map['confirmed_next_case'] != null){
         var taskModel = context.read<TaskModel>();
