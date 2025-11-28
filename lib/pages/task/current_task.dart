@@ -238,7 +238,7 @@ class _CurrentTaskState extends State<CurrentTask> {
                                 const Text('上車地：'),
                                 CustomSmallElevatedButton(
                                     icon: const Icon(Icons.copy,size: 16,),
-                                    title: '複製',
+                                    title: '複製地址',
                                     color: isAddressCopied? Colors.grey : AppColor.primary,
                                     onPressed: ()async{
                                       if(!isAddressCopied){
@@ -277,40 +277,41 @@ class _CurrentTaskState extends State<CurrentTask> {
                                       // MapsLauncher.launchQuery(taskModel.cases.first.onAddress!);
                                     }),
                                 const SizedBox(width: 5,),
-                                (widget.isOpenCase == false)?CustomSmallElevatedButton(
-                                    icon: const Icon(Icons.directions,size: 16,),
-                                    title: '導航',
-                                    color: isAddressCopied? Colors.grey : AppColor.primary,
-                                    onPressed: ()async{
-                                      bool isGoogleMaps = await MapLauncher.isMapAvailable(MapType.google) ?? false;
-                                      print('onLat ${taskModel.cases.first.onLat} onLng ${taskModel.cases.first.onLng}');
-                                      try{
-                                        if (isGoogleMaps == true) {
-                                          await MapLauncher.showDirections(
-                                            mapType: MapType.google,
-                                            directionsMode: DirectionsMode.driving,
-                                            destinationTitle: taskModel.cases.first.onAddress!,
-                                            destination: Coords(
-                                              double.parse(taskModel.cases.first.onLat!),
-                                              double.parse(taskModel.cases.first.onLng!),
-                                            ),
-                                          );
-                                        } else {
-                                          await MapLauncher.showDirections(
-                                            mapType: MapType.apple,
-                                            directionsMode: DirectionsMode.driving,
-                                            destinationTitle: taskModel.cases.first.onAddress!,
-                                            destination: Coords(
-                                              double.parse(taskModel.cases.first.onLat!),
-                                              double.parse(taskModel.cases.first.onLng!),
-                                            ),
-                                          );
-                                        }
-                                      }catch(e){
-                                        print(e);
-                                      }
-                                      // MapsLauncher.launchQuery(taskModel.cases.first.onAddress!);
-                                    }):Container()
+                                // (widget.isOpenCase == false)?CustomSmallElevatedButton(
+                                //     icon: const Icon(Icons.directions,size: 16,),
+                                //     title: '導航',
+                                //     color: isAddressCopied? Colors.grey : AppColor.primary,
+                                //     onPressed: ()async{
+                                //       bool isGoogleMaps = await MapLauncher.isMapAvailable(MapType.google) ?? false;
+                                //       print('onLat ${taskModel.cases.first.onLat} onLng ${taskModel.cases.first.onLng}');
+                                //       try{
+                                //         if (isGoogleMaps == true) {
+                                //           await MapLauncher.showDirections(
+                                //             mapType: MapType.google,
+                                //             directionsMode: DirectionsMode.driving,
+                                //             destinationTitle: taskModel.cases.first.onAddress!,
+                                //             destination: Coords(
+                                //               double.parse(taskModel.cases.first.onLat!),
+                                //               double.parse(taskModel.cases.first.onLng!),
+                                //             ),
+                                //           );
+                                //         } else {
+                                //           await MapLauncher.showDirections(
+                                //             mapType: MapType.apple,
+                                //             directionsMode: DirectionsMode.driving,
+                                //             destinationTitle: taskModel.cases.first.onAddress!,
+                                //             destination: Coords(
+                                //               double.parse(taskModel.cases.first.onLat!),
+                                //               double.parse(taskModel.cases.first.onLng!),
+                                //             ),
+                                //           );
+                                //         }
+                                //       }catch(e){
+                                //         print(e);
+                                //       }
+                                //       // MapsLauncher.launchQuery(taskModel.cases.first.onAddress!);
+                                //     }):
+                                // Container()
                               ],
                             ),
                           ),

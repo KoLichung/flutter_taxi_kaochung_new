@@ -163,31 +163,18 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
     // 調用 API 發送文字消息
     final success = await _sendTextMessage(content);
     
+    setState(() {
+      isSending = false;
+    });
+    
     if (success) {
-      // 重新獲取消息列表以顯示最新消息
-      final fetchedMessages = await _fetchMessages();
-      if (fetchedMessages != null) {
-        setState(() {
-          messages = fetchedMessages;
-          isSending = false;
-        });
-        _scrollToBottom();
-        
-        ScaffoldMessenger.of(context)
-          ..removeCurrentSnackBar()
-          ..showSnackBar(const SnackBar(
-            content: Text('訊息已發送'),
-            duration: Duration(milliseconds: 800),
-          ));
-      } else {
-        setState(() {
-          isSending = false;
-        });
-      }
+      ScaffoldMessenger.of(context)
+        ..removeCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text('訊息已發送'),
+          duration: Duration(milliseconds: 800),
+        ));
     } else {
-      setState(() {
-        isSending = false;
-      });
       ScaffoldMessenger.of(context)
         ..removeCurrentSnackBar()
         ..showSnackBar(const SnackBar(
@@ -606,27 +593,17 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
         throw Exception('創建消息記錄失敗');
       }
       
-      // 重新獲取消息列表以顯示最新消息
-      final fetchedMessages = await _fetchMessages();
-      if (fetchedMessages != null) {
-        setState(() {
-          messages = fetchedMessages;
-          isSending = false;
-        });
-        _scrollToBottom();
-        
-        print('[圖片上傳] 圖片消息發送成功');
-        ScaffoldMessenger.of(context)
-          ..removeCurrentSnackBar()
-          ..showSnackBar(const SnackBar(
-            content: Text('圖片已發送'),
-            duration: Duration(milliseconds: 800),
-          ));
-      } else {
-        setState(() {
-          isSending = false;
-        });
-      }
+      setState(() {
+        isSending = false;
+      });
+      
+      print('[圖片上傳] 圖片消息發送成功');
+      ScaffoldMessenger.of(context)
+        ..removeCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text('圖片已發送'),
+          duration: Duration(milliseconds: 800),
+        ));
         
     } catch (e) {
       print('[圖片上傳] 上傳錯誤: $e');
