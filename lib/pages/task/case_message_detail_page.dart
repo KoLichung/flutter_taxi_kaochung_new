@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:saver_gallery/saver_gallery.dart';
 import '../../color.dart';
 import '../../models/case.dart';
 import '../../models/case_message.dart';
@@ -159,31 +163,18 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
     // 調用 API 發送文字消息
     final success = await _sendTextMessage(content);
     
+    setState(() {
+      isSending = false;
+    });
+    
     if (success) {
-      // 重新獲取消息列表以顯示最新消息
-      final fetchedMessages = await _fetchMessages();
-      if (fetchedMessages != null) {
-        setState(() {
-          messages = fetchedMessages;
-          isSending = false;
-        });
-        _scrollToBottom();
-        
-        ScaffoldMessenger.of(context)
-          ..removeCurrentSnackBar()
-          ..showSnackBar(const SnackBar(
-            content: Text('訊息已發送'),
-            duration: Duration(milliseconds: 800),
-          ));
-      } else {
-        setState(() {
-          isSending = false;
-        });
-      }
+      ScaffoldMessenger.of(context)
+        ..removeCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text('訊息已發送'),
+          duration: Duration(milliseconds: 800),
+        ));
     } else {
-      setState(() {
-        isSending = false;
-      });
       ScaffoldMessenger.of(context)
         ..removeCurrentSnackBar()
         ..showSnackBar(const SnackBar(
@@ -602,27 +593,17 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
         throw Exception('創建消息記錄失敗');
       }
       
-      // 重新獲取消息列表以顯示最新消息
-      final fetchedMessages = await _fetchMessages();
-      if (fetchedMessages != null) {
-        setState(() {
-          messages = fetchedMessages;
-          isSending = false;
-        });
-        _scrollToBottom();
-        
-        print('[圖片上傳] 圖片消息發送成功');
-        ScaffoldMessenger.of(context)
-          ..removeCurrentSnackBar()
-          ..showSnackBar(const SnackBar(
-            content: Text('圖片已發送'),
-            duration: Duration(milliseconds: 800),
-          ));
-      } else {
-        setState(() {
-          isSending = false;
-        });
-      }
+      setState(() {
+        isSending = false;
+      });
+      
+      print('[圖片上傳] 圖片消息發送成功');
+      ScaffoldMessenger.of(context)
+        ..removeCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text('圖片已發送'),
+          duration: Duration(milliseconds: 800),
+        ));
         
     } catch (e) {
       print('[圖片上傳] 上傳錯誤: $e');
@@ -829,7 +810,7 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
 class _FullScreenImageViewer extends StatelessWidget {
   final String imageUrl;
 
-  const _FullScreenImageViewer({Key? key, required this.imageUrl}) : super(key: key);
+  const _FullScreenImageViewer({required this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -838,6 +819,12 @@ class _FullScreenImageViewer extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: () => _downloadImage(context),
+          ),
+        ],
       ),
       body: Container(
         // 向上偏移 100px，使圖片在視覺中心偏上
@@ -877,6 +864,124 @@ class _FullScreenImageViewer extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _downloadImage(BuildContext context) async {
+    try {
+      // 請求權限
+      bool hasPermission = false;
+      
+      if (Platform.isAndroid) {
+        final deviceInfoPlugin = DeviceInfoPlugin();
+        final deviceInfo = await deviceInfoPlugin.androidInfo;
+        final sdkInt = deviceInfo.version.sdkInt;
+        
+        if (sdkInt < 29) {
+          // Android 9 及以下需要 storage 權限
+          final status = await Permission.storage.request();
+          hasPermission = status.isGranted;
+        } else {
+          // Android 10+ 使用分區儲存，不需要特殊權限
+          hasPermission = true;
+        }
+      } else {
+        // iOS - 請求添加到相簿的權限
+        final status = await Permission.photosAddOnly.request();
+        hasPermission = status.isGranted;
+      }
+
+      // 如果沒有權限，提示用戶並提供跳轉到設定的選項
+      if (!hasPermission) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('需要相簿權限才能保存圖片'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+              action: SnackBarAction(
+                label: '開啟設定',
+                textColor: Colors.white,
+                onPressed: () {
+                  openAppSettings();
+                },
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      // 顯示保存中提示
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('正在保存圖片...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      SaveResult result;
+      final fileName = "taxi_dispatch_${DateTime.now().millisecondsSinceEpoch}.jpg";
+      
+      if (imageUrl.startsWith('http')) {
+        // 下載並保存網絡圖片
+        final response = await http.get(Uri.parse(imageUrl));
+        if (response.statusCode == 200) {
+          result = await SaverGallery.saveImage(
+            Uint8List.fromList(response.bodyBytes),
+            quality: 100,
+            fileName: fileName,
+            androidRelativePath: "Pictures/TaxiDispatch",
+            skipIfExists: false,
+          );
+        } else {
+          throw Exception('下載圖片失敗');
+        }
+      } else {
+        // 保存本地圖片
+        final bytes = await File(imageUrl).readAsBytes();
+        result = await SaverGallery.saveImage(
+          Uint8List.fromList(bytes),
+          quality: 100,
+          fileName: fileName,
+          androidRelativePath: "Pictures/TaxiDispatch",
+          skipIfExists: false,
+        );
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        if (result.isSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ 圖片已保存到相簿'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ 保存圖片失敗: ${result.errorMessage ?? "未知錯誤"}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ 保存圖片失敗: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 }
 

@@ -197,10 +197,10 @@ packages:
     dependency: transitive
     description:
       name: background_fetch
-      sha256: e9f26ae54d88310b7ac2a68f2f9fcee0081a4d5f11100f233a70702021e7ac4f
+      sha256: e767745c31f71660063985c982497995d0a71755d3f1b0c8e8c96988d64d3003
       url: "https://pub.dev"
     source: hosted
-    version: "1.3.7"
+    version: "1.4.0"
   badges:
     dependency: "direct main"
     description:
@@ -458,10 +458,10 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_background_geolocation
-      sha256: "93f56f820a98d9a7b2bc96db6ca40e7ba78c7f652b0ebc62770628a78432bef1"
+      sha256: "9cd8501a063149dec6eec0d037e7f6eac44ab655b4cfc39e482450d645eb6062"
       url: "https://pub.dev"
     source: hosted
-    version: "4.16.0"
+    version: "4.18.0"
   flutter_lints:
     dependency: "direct dev"
     description:
@@ -780,10 +780,10 @@ packages:
     dependency: "direct main"
     description:
       name: mime
-      sha256: "801fd0b26f14a4a58ccb09d5892c3fbdeff209594300a542492cf13fba9d247a"
+      sha256: "41a20518f0cb1256669420fdba0cd90d21561e560ac240f26ef8322e45bb7ed6"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.6"
+    version: "2.0.0"
   minio:
     dependency: "direct main"
     description:
@@ -976,6 +976,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.2"
+  saver_gallery:
+    dependency: "direct main"
+    description:
+      name: saver_gallery
+      sha256: bf59475e50b73d666630bed7a5fdb621fed92d637f64e3c61ce81653ec6a833c
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.0.1"
   shared_preferences:
     dependency: "direct main"
     description:
@@ -1069,14 +1077,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.10.0"
-  sprintf:
-    dependency: transitive
-    description:
-      name: sprintf
-      sha256: "1fc9ffe69d4df602376b52949af107d8f5703b77cda567c4d7d86a0693120f23"
-      url: "https://pub.dev"
-    source: hosted
-    version: "7.0.0"
   sqflite:
     dependency: "direct main"
     description:
@@ -1289,10 +1289,10 @@ packages:
     dependency: transitive
     description:
       name: uuid
-      sha256: f33d6bb662f0e4f79dcd7ada2e6170f3b3a2530c28fc41f49a411ddedd576a77
+      sha256: a11b666489b1954e01d992f3d601b1804a33937b5a8fe677bd26b8a9f96f96e8
       url: "https://pub.dev"
     source: hosted
-    version: "4.5.0"
+    version: "4.5.2"
   vector_math:
     dependency: transitive
     description:
