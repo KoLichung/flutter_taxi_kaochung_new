@@ -403,7 +403,7 @@ class _OnTaskState extends State<OnTask> {
                           const SizedBox(width: 10,),
                           CustomSmallElevatedButton(
                               icon: const Icon(Icons.copy,size: 16,),
-                              title: '複製',
+                              title: '複製地址',
                               color: isAddressCopied? Colors.grey : AppColor.primary,
                               onPressed: () async {
                                 if(!isAddressCopied){
