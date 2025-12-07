@@ -156,7 +156,15 @@ class _HomePageState extends State<HomePage> {
               ),
               // Icon(FontAwesomeIcons.taxi),
               const SizedBox(width: 10,),
-              const Text('24h派車'),
+              FutureBuilder<PackageInfo>(
+                future: PackageInfo.fromPlatform(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    return Text('24h派車(${snapshot.data!.version})');
+                  }
+                  return const Text('24h派車');
+                },
+              ),
             ],
           ),
           bottom: PreferredSize(
