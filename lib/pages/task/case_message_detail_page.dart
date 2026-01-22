@@ -3,12 +3,15 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:saver_gallery/saver_gallery.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../color.dart';
 import '../../models/case.dart';
 import '../../models/case_message.dart';
@@ -429,22 +432,49 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
                               if (message.content != null && message.content!.isNotEmpty)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 8),
-                                  child: Text(
+                                  child: _buildTextWithLinks(
                                     message.content!,
-                                    style: TextStyle(
-                                      color: isMyMessage ? Colors.white : Colors.black87,
-                                      fontSize: 15,
-                                    ),
+                                    isMyMessage,
                                   ),
                                 ),
                             ],
                           )
-                        : Text(
-                            message.content ?? '',
-                            style: TextStyle(
-                              color: isMyMessage ? Colors.white : Colors.black87,
-                              fontSize: 15,
-                            ),
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: _buildTextWithLinks(
+                                  message.content ?? '',
+                                  isMyMessage,
+                                ),
+                              ),
+                              // 只在文字消息時顯示複製圖標（圖片消息不顯示）
+                              if (message.messageType != 'image') ...[
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  onTap: () {
+                                    Clipboard.setData(ClipboardData(text: message.content ?? ''));
+                                    // 顯示複製成功提示
+                                    ScaffoldMessenger.of(context)
+                                      ..removeCurrentSnackBar()
+                                      ..showSnackBar(
+                                        const SnackBar(
+                                          content: Text('已複製訊息'),
+                                          duration: Duration(milliseconds: 300),
+                                        ),
+                                      );
+                                  },
+                                  child: Icon(
+                                    Icons.copy,
+                                    size: 16,
+                                    color: isMyMessage
+                                        ? Colors.white70
+                                        : Colors.grey.shade700,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                   ),
                 ),
@@ -501,6 +531,87 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
     }
   }
 
+  // 構建帶有可點擊 URL 的文字
+  Widget _buildTextWithLinks(String text, bool isMyMessage) {
+    // 正則表達式匹配 http:// 或 https:// 開頭的 URL
+    final urlRegex = RegExp(r'(https?://[^\s]+)');
+    final matches = urlRegex.allMatches(text);
+    
+    if (matches.isEmpty) {
+      // 沒有 URL，直接返回普通文字
+      return Text(
+        text,
+        style: TextStyle(
+          color: isMyMessage ? Colors.white : Colors.black87,
+          fontSize: 15,
+        ),
+      );
+    }
+    
+    // 有 URL，需要分段顯示
+    List<TextSpan> spans = [];
+    int lastEnd = 0;
+    
+    for (var match in matches) {
+      // 添加 URL 之前的文字
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(
+          text: text.substring(lastEnd, match.start),
+          style: TextStyle(
+            color: isMyMessage ? Colors.white : Colors.black87,
+            fontSize: 15,
+          ),
+        ));
+      }
+      
+      // 添加可點擊的 URL
+      final url = match.group(0)!;
+      spans.add(TextSpan(
+        text: url,
+        style: TextStyle(
+          color: isMyMessage ? Colors.lightBlueAccent : Colors.blue,
+          fontSize: 15,
+          decoration: TextDecoration.underline,
+        ),
+        recognizer: TapGestureRecognizer()
+          ..onTap = () async {
+            final uri = Uri.parse(url);
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            } else {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context)
+                  ..removeCurrentSnackBar()
+                  ..showSnackBar(
+                    const SnackBar(
+                      content: Text('無法打開連結'),
+                      duration: Duration(milliseconds: 800),
+                    ),
+                  );
+              }
+            }
+          },
+      ));
+      
+      lastEnd = match.end;
+    }
+    
+    // 添加最後的文字
+    if (lastEnd < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(lastEnd),
+        style: TextStyle(
+          color: isMyMessage ? Colors.white : Colors.black87,
+          fontSize: 15,
+        ),
+      ));
+    }
+    
+    return RichText(
+      text: TextSpan(children: spans),
+    );
+  }
+
   // 選擇拍照或從相簿選擇
   Future<void> _pickAndSendImage() async {
     // 顯示選擇對話框
@@ -540,12 +651,26 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
 
       if (image == null) return;
 
-      setState(() {
-        isSending = true;
-      });
+      // 顯示預覽頁面，等待用戶確認
+      final shouldSend = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => _ImagePreviewScreen(
+            imagePath: image.path,
+            caseId: widget.theCase.id!,
+          ),
+        ),
+      );
 
-      // 調用圖片上傳流程（使用假數據）
-      await _uploadImageAndSendMessage(image);
+      // 如果用戶確認發送，才執行上傳
+      if (shouldSend == true) {
+        setState(() {
+          isSending = true;
+        });
+
+        // 調用圖片上傳流程
+        await _uploadImageAndSendMessage(image);
+      }
       
     } catch (e) {
       print('選擇圖片錯誤: $e');
@@ -801,6 +926,60 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
       context,
       MaterialPageRoute(
         builder: (context) => _FullScreenImageViewer(imageUrl: imageUrl),
+      ),
+    );
+  }
+}
+
+// 圖片預覽頁面
+class _ImagePreviewScreen extends StatelessWidget {
+  final String imagePath;
+  final int caseId;
+
+  const _ImagePreviewScreen({
+    required this.imagePath,
+    required this.caseId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(false),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.check, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(true),
+          ),
+        ],
+      ),
+      body: Center(
+        child: Transform.translate(
+          offset: const Offset(0, -50),
+          child: InteractiveViewer(
+            minScale: 0.5,
+            maxScale: 4.0,
+            child: Image.file(
+              File(imagePath),
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return const Center(
+                  child: Icon(
+                    Icons.broken_image,
+                    size: 100,
+                    color: Colors.white,
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
       ),
     );
   }
