@@ -41,6 +41,7 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
   bool isLoading = false;
   bool isSending = false;
   Timer? _pollingTimer; // 輪詢定時器
+  String? _userRole; // 用戶角色：'driver' 或 'dispatcher'
 
   @override
   void initState() {
@@ -80,9 +81,13 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
     final fetchedMessages = await _fetchMessages();
     
     if (fetchedMessages != null && mounted) {
-      // 只有在消息數量或內容改變時才更新
-      if (fetchedMessages.length != messages.length || 
-          _hasNewMessages(fetchedMessages)) {
+      // 檢查是否有變化：新消息、消息數量改變、或已讀狀態改變
+      final hasNewMessages = fetchedMessages.length != messages.length || 
+          _hasNewMessages(fetchedMessages);
+      final hasReadStatusChanged = _hasReadStatusChanged(fetchedMessages);
+      
+      if (hasNewMessages || hasReadStatusChanged) {
+        print('[輪詢更新] 觸發 UI 更新 - 新消息: $hasNewMessages, 已讀狀態改變: $hasReadStatusChanged');
         setState(() {
           final wasAtBottom = _isAtBottom();
           messages = fetchedMessages;
@@ -110,6 +115,50 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
     return newMessages.last.id != messages.last.id;
   }
   
+  // 檢查已讀狀態是否改變
+  bool _hasReadStatusChanged(List<CaseMessage> newMessages) {
+    if (messages.isEmpty || newMessages.isEmpty) return false;
+    
+    // 創建一個 map 以便快速查找
+    final oldMessagesMap = <int, CaseMessage>{};
+    for (var msg in messages) {
+      if (msg.id != null) {
+        oldMessagesMap[msg.id!] = msg;
+      }
+    }
+    
+    // 檢查每條消息的已讀狀態是否改變
+    for (var newMsg in newMessages) {
+      if (newMsg.id == null) continue;
+      
+      final oldMsg = oldMessagesMap[newMsg.id];
+      if (oldMsg == null) continue;
+      
+      // 根據用戶角色檢查對應的已讀字段
+      bool oldReadStatus = false;
+      bool newReadStatus = false;
+      
+      if (_userRole == 'driver') {
+        oldReadStatus = oldMsg.isReadByDispatcher == true;
+        newReadStatus = newMsg.isReadByDispatcher == true;
+      } else if (_userRole == 'dispatcher') {
+        oldReadStatus = oldMsg.isReadByDriver == true;
+        newReadStatus = newMsg.isReadByDriver == true;
+      } else {
+        oldReadStatus = oldMsg.isRead == true;
+        newReadStatus = newMsg.isRead == true;
+      }
+      
+      if (oldReadStatus != newReadStatus) {
+        print('[已讀狀態改變] 消息 ID: ${newMsg.id}, 內容: ${newMsg.content}');
+        print('[已讀狀態改變] 舊狀態: $oldReadStatus → 新狀態: $newReadStatus');
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
   // 檢查是否在底部
   bool _isAtBottom() {
     if (!_scrollController.hasClients) return true;
@@ -133,8 +182,13 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
         isLoading = false;
       });
       
-      // 標記消息為已讀
+      // 標記消息為已讀（會從響應中獲取角色）
       await _markMessagesAsRead();
+      
+      // 如果還沒有獲取到角色，嘗試從未讀數 API 獲取
+      if (_userRole == null) {
+        await _fetchUnreadCountAndRole();
+      }
       
       _scrollToBottom();
     } else {
@@ -147,6 +201,40 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
           content: Text('載入消息失敗'),
           duration: Duration(milliseconds: 800),
         ));
+    }
+  }
+
+  // 獲取未讀數並從響應中獲取角色
+  Future<void> _fetchUnreadCountAndRole() async {
+    try {
+      final userModel = context.read<UserModel>();
+      final path = ServerApi.PATH_CASE_MESSAGE_UNREAD_COUNT.replaceAll('{case_id}', widget.theCase.id.toString());
+      
+      final response = await http.get(
+        ServerApi.standard(path: path),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token ${userModel.token}',
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.body.runes.toList()));
+        print('[API] 未讀數 API 響應: ${jsonEncode(data)}');
+        if (data['role'] != null && mounted) {
+          setState(() {
+            _userRole = data['role'];
+          });
+          print('[API] ✅ 從未讀數 API 獲取用戶角色: $_userRole');
+        } else {
+          print('[API] ⚠️ 未讀數 API 未返回角色信息');
+        }
+      } else {
+        print('[API] ⚠️ 未讀數 API 請求失敗: ${response.statusCode}');
+        print('[API] 響應內容: ${response.body}');
+      }
+    } catch (e) {
+      print('[API] 獲取未讀數和角色錯誤: $e');
     }
   }
 
@@ -482,25 +570,45 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
                 // 時間和已讀狀態
                 Padding(
                   padding: const EdgeInsets.only(top: 4, left: 4, right: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _formatTime(message.createdAt ?? ''),
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      if (isMyMessage) ...[
-                        const SizedBox(width: 4),
-                        Icon(
-                          message.isRead == true ? Icons.done_all : Icons.done,
-                          size: 14,
-                          color: message.isRead == true ? Colors.blue : Colors.grey,
-                        ),
-                      ],
-                    ],
+                  child: Builder(
+                    builder: (context) {
+                      // 添加 log 來調試顯示邏輯
+                      final isMyMsg = isMyMessage;
+                      final isRead = isMyMsg ? _isMessageRead(message) : false;
+                      
+                      print('[UI顯示] ==========================================');
+                      print('[UI顯示] 消息 ID: ${message.id}');
+                      print('[UI顯示] 消息內容: ${message.content}');
+                      print('[UI顯示] 是否為我的消息: $isMyMsg');
+                      print('[UI顯示] 是否已讀: $isRead');
+                      print('[UI顯示] 是否顯示"已讀"文字: ${isMyMsg && isRead}');
+                      print('[UI顯示] ==========================================');
+                      
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // 已讀狀態（在時間前面）
+                          if (isMyMsg && isRead) ...[
+                            const Text(
+                              '已讀',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.blue,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                          ],
+                          // 時間
+                          Text(
+                            _formatTime(message.createdAt ?? ''),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ],
@@ -529,6 +637,38 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
     } catch (e) {
       return '';
     }
+  }
+
+  // 判斷消息是否已讀
+  bool _isMessageRead(CaseMessage message) {
+    print('[已讀判斷] ==========================================');
+    print('[已讀判斷] 消息 ID: ${message.id}');
+    print('[已讀判斷] 消息內容: ${message.content}');
+    print('[已讀判斷] 當前用戶角色: $_userRole');
+    print('[已讀判斷] isRead (舊字段): ${message.isRead}');
+    print('[已讀判斷] isReadByDriver: ${message.isReadByDriver}');
+    print('[已讀判斷] isReadByDispatcher: ${message.isReadByDispatcher}');
+    print('[已讀判斷] readByDriverAt: ${message.readByDriverAt}');
+    print('[已讀判斷] readByDispatcherAt: ${message.readByDispatcherAt}');
+    
+    bool result = false;
+    if (_userRole == 'driver') {
+      // 司機端：檢查總機是否已讀
+      result = message.isReadByDispatcher == true;
+      print('[已讀判斷] 司機端 → 檢查總機是否已讀: $result');
+    } else if (_userRole == 'dispatcher') {
+      // 總機端：檢查司機是否已讀
+      result = message.isReadByDriver == true;
+      print('[已讀判斷] 總機端 → 檢查司機是否已讀: $result');
+    } else {
+      // 如果還沒有獲取到角色，使用舊字段作為後備
+      result = message.isRead == true;
+      print('[已讀判斷] 角色未獲取 → 使用舊字段 isRead: $result');
+    }
+    
+    print('[已讀判斷] 最終結果: $result');
+    print('[已讀判斷] ==========================================');
+    return result;
   }
 
   // 構建帶有可點擊 URL 的文字
@@ -859,6 +999,22 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
           final message = CaseMessage.fromJson(item);
           messageList.add(message);
           
+          // 詳細 log 每條消息的已讀狀態
+          print('[消息解析] ==========================================');
+          print('[消息解析] 消息 ID: ${message.id}');
+          print('[消息解析] 消息類型: ${message.messageType}');
+          print('[消息解析] 消息內容: ${message.content}');
+          print('[消息解析] 發送者 ID: ${message.sender}');
+          print('[消息解析] 當前用戶 ID: ${userModel.user?.id}');
+          print('[消息解析] 是否為我的消息: ${message.sender == userModel.user?.id}');
+          print('[消息解析] isRead (舊字段): ${message.isRead}');
+          print('[消息解析] isReadByDriver: ${message.isReadByDriver}');
+          print('[消息解析] isReadByDispatcher: ${message.isReadByDispatcher}');
+          print('[消息解析] readByDriverAt: ${message.readByDriverAt}');
+          print('[消息解析] readByDispatcherAt: ${message.readByDispatcherAt}');
+          print('[消息解析] 原始 JSON: ${jsonEncode(item)}');
+          print('[消息解析] ==========================================');
+          
           if (message.messageType == 'image') {
             imageCount++;
             print('[圖片消息 $imageCount]');
@@ -908,6 +1064,19 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.body.runes.toList()));
         print('[API] 標記消息為已讀成功，更新了 ${data['updated_count']} 條消息');
+        
+        // V2 API 返回角色信息
+        if (data['role'] != null && mounted) {
+          setState(() {
+            _userRole = data['role'];
+          });
+          print('[API] ✅ 標記已讀 API 返回用戶角色: $_userRole');
+          print('[API] 完整響應數據: ${jsonEncode(data)}');
+        } else {
+          print('[API] ⚠️ 標記已讀 API 未返回角色信息');
+          print('[API] 響應數據: ${jsonEncode(data)}');
+        }
+        
         return true;
       } else {
         print('[API] 標記消息為已讀失敗: ${response.body}');

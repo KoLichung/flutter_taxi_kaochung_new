@@ -11,6 +11,12 @@ class CaseMessage {
   bool? isRead;
   String? readAt;
   String? createdAt;
+  
+  // V2 雙向已讀字段
+  bool? isReadByDriver;
+  String? readByDriverAt;
+  bool? isReadByDispatcher;
+  String? readByDispatcherAt;
 
   CaseMessage({
     this.id,
@@ -25,6 +31,10 @@ class CaseMessage {
     this.isRead,
     this.readAt,
     this.createdAt,
+    this.isReadByDriver,
+    this.readByDriverAt,
+    this.isReadByDispatcher,
+    this.readByDispatcherAt,
   });
 
   CaseMessage.fromJson(Map<String, dynamic> json) {
@@ -40,6 +50,12 @@ class CaseMessage {
     isRead = json['is_read'];
     readAt = json['read_at'];
     createdAt = json['created_at'];
+    
+    // V2 雙向已讀字段
+    isReadByDriver = json['is_read_by_driver'];
+    readByDriverAt = json['read_by_driver_at'];
+    isReadByDispatcher = json['is_read_by_dispatcher'];
+    readByDispatcherAt = json['read_by_dispatcher_at'];
   }
 
   Map<String, dynamic> toJson() {
@@ -56,6 +72,10 @@ class CaseMessage {
     data['is_read'] = isRead;
     data['read_at'] = readAt;
     data['created_at'] = createdAt;
+    data['is_read_by_driver'] = isReadByDriver;
+    data['read_by_driver_at'] = readByDriverAt;
+    data['is_read_by_dispatcher'] = isReadByDispatcher;
+    data['read_by_dispatcher_at'] = readByDispatcherAt;
     return data;
   }
 }
