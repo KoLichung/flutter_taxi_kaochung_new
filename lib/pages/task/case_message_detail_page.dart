@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -754,75 +756,89 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
 
   // 選擇拍照或從相簿選擇
   Future<void> _pickAndSendImage() async {
-    // 顯示選擇對話框
-    final ImageSource? source = await showDialog<ImageSource>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('選擇圖片來源'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.camera_alt, color: AppColor.primary),
-                title: const Text('拍照'),
-                onTap: () => Navigator.pop(context, ImageSource.camera),
+    ImageSource? retrySource; // 取消預覽時，用同一來源繼續選圖/拍照
+    while (true) {
+      ImageSource? source;
+      if (retrySource != null) {
+        source = retrySource;
+        retrySource = null;
+      } else {
+        // 顯示選擇對話框
+        source = await showDialog<ImageSource>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('選擇圖片來源'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.camera_alt, color: AppColor.primary),
+                    title: const Text('拍照'),
+                    onTap: () => Navigator.pop(context, ImageSource.camera),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.photo_library, color: AppColor.primary),
+                    title: const Text('從相簿選擇'),
+                    onTap: () => Navigator.pop(context, ImageSource.gallery),
+                  ),
+                ],
               ),
-              ListTile(
-                leading: const Icon(Icons.photo_library, color: AppColor.primary),
-                title: const Text('從相簿選擇'),
-                onTap: () => Navigator.pop(context, ImageSource.gallery),
-              ),
-            ],
+            );
+          },
+        );
+      }
+
+      if (source == null) return;
+      final sourceNonNull = source!;
+
+      try {
+        final XFile? image = await _imagePicker.pickImage(
+          source: sourceNonNull,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 85,
+        );
+
+        if (image == null) continue; // 取消選圖/拍照，回到來源選擇 dialog
+
+        // 顯示預覽頁面，等待用戶確認
+        final result = await Navigator.push<Object?>(
+          context,
+          MaterialPageRoute(
+            builder: (context) => _ImagePreviewScreen(
+              imagePath: image.path,
+              caseId: widget.theCase.id!,
+              source: sourceNonNull,
+            ),
           ),
         );
-      },
-    );
 
-    if (source == null) return;
+        // 如果用戶確認發送，才執行上傳
+        if (result == true) {
+          setState(() {
+            isSending = true;
+          });
 
-    try {
-      final XFile? image = await _imagePicker.pickImage(
-        source: source,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
-      );
-
-      if (image == null) return;
-
-      // 顯示預覽頁面，等待用戶確認
-      final shouldSend = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(
-          builder: (context) => _ImagePreviewScreen(
-            imagePath: image.path,
-            caseId: widget.theCase.id!,
-          ),
-        ),
-      );
-
-      // 如果用戶確認發送，才執行上傳
-      if (shouldSend == true) {
+          // 調用圖片上傳流程
+          await _uploadImageAndSendMessage(image);
+          return;
+        }
+        // 用戶取消預覽，用同一來源繼續選圖/拍照（不回到 dialog）
+        retrySource = sourceNonNull;
+      } catch (e) {
+        print('選擇圖片錯誤: $e');
         setState(() {
-          isSending = true;
+          isSending = false;
         });
-
-        // 調用圖片上傳流程
-        await _uploadImageAndSendMessage(image);
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(const SnackBar(
+            content: Text('選擇圖片失敗'),
+            duration: Duration(milliseconds: 800),
+          ));
+        return;
       }
-      
-    } catch (e) {
-      print('選擇圖片錯誤: $e');
-      setState(() {
-        isSending = false;
-      });
-      ScaffoldMessenger.of(context)
-        ..removeCurrentSnackBar()
-        ..showSnackBar(const SnackBar(
-          content: Text('選擇圖片失敗'),
-          duration: Duration(milliseconds: 800),
-        ));
     }
   }
 
@@ -1101,53 +1117,128 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
 }
 
 // 圖片預覽頁面
-class _ImagePreviewScreen extends StatelessWidget {
+class _ImagePreviewScreen extends StatefulWidget {
   final String imagePath;
   final int caseId;
+  final ImageSource source;
 
   const _ImagePreviewScreen({
     required this.imagePath,
     required this.caseId,
+    required this.source,
   });
 
   @override
+  State<_ImagePreviewScreen> createState() => _ImagePreviewScreenState();
+}
+
+class _ImagePreviewScreenState extends State<_ImagePreviewScreen> {
+  late final Future<Size> _imageSizeFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _imageSizeFuture = _loadImageDimensions(widget.imagePath);
+  }
+
+  Future<Size> _loadImageDimensions(String path) async {
+    final bytes = await File(path).readAsBytes();
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    final size = Size(frame.image.width.toDouble(), frame.image.height.toDouble());
+    frame.image.dispose();
+    codec.dispose();
+    return size;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(false),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.check, color: Colors.white),
-            onPressed: () => Navigator.of(context).pop(true),
-          ),
-        ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.white,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
       ),
-      body: Center(
-        child: Transform.translate(
-          offset: const Offset(0, -50),
-          child: InteractiveViewer(
-            minScale: 0.5,
-            maxScale: 4.0,
-            child: Image.file(
-              File(imagePath),
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                return const Center(
-                  child: Icon(
-                    Icons.broken_image,
-                    size: 100,
-                    color: Colors.white,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          systemOverlayStyle: const SystemUiOverlayStyle(
+            statusBarColor: Colors.white,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
+          ),
+          leading: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: Colors.black12,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close, color: Colors.black, size: 20),
+            ),
+            onPressed: () => Navigator.of(context).pop(widget.source),
+          ),
+          actions: [
+            IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: const BoxDecoration(
+                  color: Colors.black12,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check, color: Colors.black, size: 20),
+              ),
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
+          ],
+        ),
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final vW = constraints.maxWidth;
+            final vH = constraints.maxHeight;
+            return FutureBuilder<Size>(
+              future: _imageSizeFuture,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  );
+                }
+                final imgW = snapshot.data!.width;
+                final imgH = snapshot.data!.height;
+
+                // scale 1.0 = constrained: true + fit: BoxFit.contain 已是 fit 狀態
+                // maxScale = fill 所需的額外倍率
+                final scaleW = vW / imgW;
+                final scaleH = vH / imgH;
+                final maxScale = math.max(scaleW, scaleH) / math.min(scaleW, scaleH);
+
+                return InteractiveViewer(
+                  minScale: 1.0,
+                  maxScale: math.max(maxScale, 2.0),
+                  child: SizedBox(
+                    width: vW,
+                    height: vH,
+                    child: Image.file(
+                      File(widget.imagePath),
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Center(
+                          child: Icon(
+                            Icons.broken_image,
+                            size: 100,
+                            color: Colors.white,
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 );
               },
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

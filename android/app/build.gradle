@@ -8,6 +8,14 @@ plugins {
 Project background_geolocation = project(':flutter_background_geolocation')
 apply from: "${background_geolocation.projectDir}/background_geolocation.gradle"
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
 android {
     namespace = "com.chijia.flutter_taxi_chinghsien"
     compileSdk = 36
@@ -30,8 +38,8 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24
         targetSdk = 36
-        versionCode = 71
-        versionName = '1.0.70'
+        versionCode = localProperties.getProperty('flutter.versionCode')?.toInteger() ?: 1
+        versionName = localProperties.getProperty('flutter.versionName') ?: '1.0.0'
     }
 
     buildTypes {
