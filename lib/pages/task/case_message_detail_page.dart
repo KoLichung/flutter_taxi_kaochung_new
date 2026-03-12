@@ -718,9 +718,19 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
         recognizer: TapGestureRecognizer()
           ..onTap = () async {
             final uri = Uri.parse(url);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            } else {
+            try {
+              final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+              if (!launched && context.mounted) {
+                ScaffoldMessenger.of(context)
+                  ..removeCurrentSnackBar()
+                  ..showSnackBar(
+                    const SnackBar(
+                      content: Text('無法打開連結'),
+                      duration: Duration(milliseconds: 800),
+                    ),
+                  );
+              }
+            } catch (e) {
               if (context.mounted) {
                 ScaffoldMessenger.of(context)
                   ..removeCurrentSnackBar()
