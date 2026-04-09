@@ -352,6 +352,8 @@ class _CurrentTaskState extends State<CurrentTask> {
                               (taskModel.cases.first.offAddress!="")?Text('下車地：${taskModel.cases.first.offAddress}'):Container(),
                               (taskModel.cases.first.timeMemo!="")?Text('時間：${taskModel.cases.first.timeMemo}'):Container(),
                               (taskModel.cases.first.memo!="")?Text('備註：${taskModel.cases.first.memo}'):Container(),
+                              if ((taskModel.cases.first.returnMoney ?? 0) != 0)
+                                Text('加扣儲值金：${taskModel.cases.first.returnMoney}'),
                               Text(_getExpectTimeString(remainSeconds)),
                             ],
                           )

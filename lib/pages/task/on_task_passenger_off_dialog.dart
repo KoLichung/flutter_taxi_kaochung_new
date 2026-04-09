@@ -7,8 +7,9 @@ class OnTaskPassengerOffDialog extends StatefulWidget {
   final int before_left_money;
   final int dispatch_fee;
   final int after_left_money;
+  final int return_money;
 
-  const OnTaskPassengerOffDialog({Key? key, required this.task_price,required this.before_left_money, required this.dispatch_fee, required this.after_left_money});
+  const OnTaskPassengerOffDialog({Key? key, required this.task_price,required this.before_left_money, required this.dispatch_fee, required this.after_left_money, required this.return_money});
 
   @override
   _OnTaskPassengerOffDialogState createState() => new _OnTaskPassengerOffDialogState();
@@ -55,6 +56,14 @@ class _OnTaskPassengerOffDialogState extends State<OnTaskPassengerOffDialog> {
                 Text('${widget.dispatch_fee}'),
               ],
             ),
+            if (widget.return_money != 0)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('加扣儲值金：'),
+                  Text('${widget.return_money}'),
+                ],
+              ),
             const Divider(thickness: 1,),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

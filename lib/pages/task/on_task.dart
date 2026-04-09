@@ -784,7 +784,13 @@ class _OnTaskState extends State<OnTask> {
             barrierDismissible: false,
             context: context,
             builder: (BuildContext context) {
-              return OnTaskPassengerOffDialog(task_price:map['case_money'] ,before_left_money: map['before_left_money'],dispatch_fee: map['dispatch_fee'],after_left_money: map['after_left_money']);
+              return OnTaskPassengerOffDialog(
+                task_price: map['case_money'],
+                before_left_money: map['before_left_money'],
+                dispatch_fee: map['dispatch_fee'],
+                after_left_money: map['after_left_money'],
+                return_money: map['return_money'] ?? 0,
+              );
             });
 
         if(taskModel.cases.isEmpty) {

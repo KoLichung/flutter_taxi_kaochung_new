@@ -370,6 +370,8 @@ class _HomePageState extends State<HomePage> {
                     // (myCases[i].offAddress!="")?Text('下車地：${myCases[i].offAddress}'):Container(),
                     (myCases[i].timeMemo!="")?Text('時間：${myCases[i].timeMemo}'):Container(),
                     (myCases[i].memo!="")?Text('備註：${myCases[i].memo}'):Container(),
+                    if ((myCases[i].returnMoney ?? 0) != 0)
+                      Text('加扣儲值金：${myCases[i].returnMoney}'),
                     const SizedBox(height: 10,),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,

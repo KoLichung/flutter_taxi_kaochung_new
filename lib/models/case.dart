@@ -13,6 +13,7 @@ class Case {
   String? offLng;
   String? offAddress;
   int? caseMoney;
+  int? returnMoney;
   String? createTime;
   String? confirmTime;
   String? arrivedTime;
@@ -53,6 +54,7 @@ class Case {
         this.offLng,
         this.offAddress,
         this.caseMoney,
+        this.returnMoney,
         this.createTime,
         this.confirmTime,
         this.arrivedTime,
@@ -94,6 +96,7 @@ class Case {
       offAddress = "";
     }
     caseMoney = json['case_money'];
+    returnMoney = json['return_money'] ?? 0;
     createTime = json['create_time'];
     confirmTime = json['confirm_time'];
     arrivedTime = json['arrived_time'];
@@ -167,6 +170,7 @@ class Case {
     data['off_lng'] = this.offLng;
     data['off_address'] = this.offAddress;
     data['case_money'] = this.caseMoney;
+    data['return_money'] = this.returnMoney;
     data['memo'] = this.memo;
     data['create_time'] = this.createTime;
     data['confirm_time'] = this.confirmTime;
