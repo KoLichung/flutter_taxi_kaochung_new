@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -35,29 +36,40 @@ class CaseMessageDetailPage extends StatefulWidget {
   _CaseMessageDetailPageState createState() => _CaseMessageDetailPageState();
 }
 
-class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
+class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> with WidgetsBindingObserver {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _imagePicker = ImagePicker();
+  final AudioPlayer _chatSoundPlayer = AudioPlayer();
   List<CaseMessage> messages = [];
   bool isLoading = false;
   bool isSending = false;
+  bool _isAppInForeground = true;
+  bool _hasInitializedMessages = false;
   Timer? _pollingTimer; // 輪詢定時器
   String? _userRole; // 用戶角色：'driver' 或 'dispatcher'
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadMessages();
     _startPolling();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _stopPolling();
+    _chatSoundPlayer.dispose();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _isAppInForeground = state == AppLifecycleState.resumed;
   }
   
   // 開始輪詢消息
@@ -89,6 +101,11 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
       final hasReadStatusChanged = _hasReadStatusChanged(fetchedMessages);
       
       if (hasNewMessages || hasReadStatusChanged) {
+        final shouldPlayIncomingSound = hasNewMessages &&
+            _hasInitializedMessages &&
+            _isAppInForeground &&
+            _hasIncomingMessagesFromOtherUser(fetchedMessages);
+
         print('[輪詢更新] 觸發 UI 更新 - 新消息: $hasNewMessages, 已讀狀態改變: $hasReadStatusChanged');
         setState(() {
           final wasAtBottom = _isAtBottom();
@@ -101,6 +118,10 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
             });
           }
         });
+
+        if (shouldPlayIncomingSound) {
+          _playIncomingMessageSound();
+        }
         
         // 標記消息為已讀
         await _markMessagesAsRead();
@@ -160,6 +181,39 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
     
     return false;
   }
+
+  bool _hasIncomingMessagesFromOtherUser(List<CaseMessage> newMessages) {
+    if (messages.isEmpty || newMessages.isEmpty) return false;
+
+    final existingMessageIds = messages
+        .where((m) => m.id != null)
+        .map((m) => m.id!)
+        .toSet();
+    final currentUserId = context.read<UserModel>().user?.id;
+
+    for (final message in newMessages) {
+      if (message.id == null) continue;
+
+      final isNewMessage = !existingMessageIds.contains(message.id);
+      final isFromOtherUser = message.sender != currentUserId;
+      if (isNewMessage && isFromOtherUser) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  Future<void> _playIncomingMessageSound() async {
+    if (!_isAppInForeground) return;
+
+    try {
+      await _chatSoundPlayer.stop();
+      await _chatSoundPlayer.play(AssetSource('chat_sound.mp3'));
+    } catch (e) {
+      print('[音效] 播放聊天提示音失敗: $e');
+    }
+  }
   
   // 檢查是否在底部
   bool _isAtBottom() {
@@ -183,6 +237,7 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
         messages = fetchedMessages;
         isLoading = false;
       });
+      _hasInitializedMessages = true;
       
       // 標記消息為已讀（會從響應中獲取角色）
       await _markMessagesAsRead();
@@ -197,6 +252,7 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> {
       setState(() {
         isLoading = false;
       });
+      _hasInitializedMessages = true;
       ScaffoldMessenger.of(context)
         ..removeCurrentSnackBar()
         ..showSnackBar(const SnackBar(

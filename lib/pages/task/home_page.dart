@@ -371,7 +371,10 @@ class _HomePageState extends State<HomePage> {
                     (myCases[i].timeMemo!="")?Text('時間：${myCases[i].timeMemo}'):Container(),
                     (myCases[i].memo!="")?Text('備註：${myCases[i].memo}'):Container(),
                     if ((myCases[i].returnMoney ?? 0) != 0)
-                      Text('加扣儲值金：${myCases[i].returnMoney}'),
+                      Text(
+                        '加扣儲值金：${myCases[i].returnMoney}',
+                        style: const TextStyle(color: AppColor.red),
+                      ),
                     const SizedBox(height: 10,),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,

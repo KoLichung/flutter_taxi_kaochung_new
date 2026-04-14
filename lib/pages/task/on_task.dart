@@ -472,6 +472,10 @@ class _OnTaskState extends State<OnTask> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
+                          const Text(
+                            '乘客車資：',
+                            style: TextStyle(color: AppColor.primary, fontSize: 20),
+                          ),
                           Container(
                               margin: const EdgeInsets.fromLTRB(0,10,10,10),
                               height: 40,
@@ -515,6 +519,11 @@ class _OnTaskState extends State<OnTask> {
                               })),
                         ],
                       ),
+                      if ((widget.theCase.returnMoney ?? 0) != 0)
+                        Text(
+                          '*此單加扣儲值金：${widget.theCase.returnMoney}',
+                          style: const TextStyle(color: AppColor.red),
+                        ),
                       // const Text('(僅供參考，請依實際車資輸入)',style: TextStyle(color: AppColor.red),),
                       const SizedBox(height: 20),
                       !isPassengerOnBoard ?
