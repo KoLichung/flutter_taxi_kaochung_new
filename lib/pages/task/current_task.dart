@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_taxi_chinghsien/notifier_models/task_model.dart';
 import 'package:flutter_taxi_chinghsien/pages/task/current_task_report_dialog.dart';
@@ -36,7 +37,7 @@ class CurrentTask extends StatefulWidget {
   _CurrentTaskState createState() => _CurrentTaskState();
 }
 
-class _CurrentTaskState extends State<CurrentTask> {
+class _CurrentTaskState extends State<CurrentTask> with WidgetsBindingObserver {
 
   late Case theCase;
 
@@ -48,6 +49,9 @@ class _CurrentTaskState extends State<CurrentTask> {
   bool isRequesting = false;
   bool isAddressCopied = false;
   int unreadMessageCount = 0; // 未讀消息數（從 API 獲取）
+  final AudioPlayer _chatSoundPlayer = AudioPlayer();
+  bool _isAppInForeground = true;
+  int? _previousUnreadMessageCount;
 
   Timer? _fetchTimer;
 
@@ -61,6 +65,7 @@ class _CurrentTaskState extends State<CurrentTask> {
   void initState() {
     // TODO: implement initState
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // fetchNewTask();
     var userModel = context.read<UserModel>();
     userToken = userModel.token!;
@@ -94,6 +99,24 @@ class _CurrentTaskState extends State<CurrentTask> {
     _fetchTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
       _fetchCaseState(userToken!, theCase.id!);
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 僅 resumed 會在 inactive（轉場、推頁、部分系統 UI）時變 false，導致前景仍不播音
+    _isAppInForeground = state == AppLifecycleState.resumed ||
+        state == AppLifecycleState.inactive;
+  }
+
+  Future<void> _playUnreadIncreaseSound() async {
+    if (!_isAppInForeground) return;
+    try {
+      await _chatSoundPlayer.stop();
+      await _chatSoundPlayer.play(AssetSource('chat_sound.mp3'));
+      print('[CurrentTask][音效] 已觸發播放 chat_sound');
+    } catch (e) {
+      print('[CurrentTask][音效] 播放聊天提示音失敗: $e');
+    }
   }
 
 
@@ -388,6 +411,8 @@ class _CurrentTaskState extends State<CurrentTask> {
   @override
   void dispose() {
     // TODO: implement dispose
+    WidgetsBinding.instance.removeObserver(this);
+    _chatSoundPlayer.dispose();
     super.dispose();
     if(_remainTimer!=null){
       print('cancel remain timer');
@@ -475,9 +500,22 @@ class _CurrentTaskState extends State<CurrentTask> {
       
       // 更新未讀消息數
       if (map.containsKey('case_message_unread_count')) {
+        final newUnread = (map['case_message_unread_count'] as num?)?.toInt() ?? 0;
+        final prev = _previousUnreadMessageCount;
+        final shouldPlayUnreadSound =
+            _isAppInForeground && prev != null && newUnread > prev;
+
         setState(() {
-          unreadMessageCount = map['case_message_unread_count'] ?? 0;
+          unreadMessageCount = newUnread;
         });
+        _previousUnreadMessageCount = newUnread;
+
+        print(
+            '[CurrentTask][未讀音效] prev=$prev new=$newUnread foreground=$_isAppInForeground shouldPlay=$shouldPlayUnreadSound',
+        );
+        if (shouldPlayUnreadSound) {
+          _playUnreadIncreaseSound();
+        }
         print('[CurrentTask] 未讀消息數: $unreadMessageCount');
       }
       

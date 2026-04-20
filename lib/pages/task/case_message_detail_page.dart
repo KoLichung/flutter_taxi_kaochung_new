@@ -37,7 +37,16 @@ class CaseMessageDetailPage extends StatefulWidget {
 }
 
 class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> with WidgetsBindingObserver {
+  static const List<String> _quickReplySnippets = [
+    '好的',
+    '塞車',
+    '晚3分鐘抵達',
+    '已等待15分鐘',
+    '請給我回金後台🙏',
+  ];
+
   final TextEditingController _messageController = TextEditingController();
+  final FocusNode _messageFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _imagePicker = ImagePicker();
   final AudioPlayer _chatSoundPlayer = AudioPlayer();
@@ -63,6 +72,7 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> with Widg
     _stopPolling();
     _chatSoundPlayer.dispose();
     _messageController.dispose();
+    _messageFocusNode.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -353,6 +363,45 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> with Widg
     return message.sender == userModel.user?.id;
   }
 
+  void _applyQuickReplyToInput(String text) {
+    final existing = _messageController.text;
+    final combined = existing.isEmpty ? text : '$existing$text';
+    _messageController.text = combined;
+    _messageController.selection =
+        TextSelection.collapsed(offset: combined.length);
+    _messageFocusNode.requestFocus();
+  }
+
+  Widget _buildQuickReplyBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final snippet in _quickReplySnippets)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ActionChip(
+                  visualDensity: VisualDensity.compact,
+                  label: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 220),
+                    child: Text(
+                      snippet,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                  onPressed: () => _applyQuickReplyToInput(snippet),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -434,8 +483,14 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> with Widg
               ),
             ),
             child: SafeArea(
-              child: Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  _buildQuickReplyBar(),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
                   // 圖片按鈕
                   IconButton(
                     icon: const Icon(Icons.image, color: Colors.grey),
@@ -446,6 +501,7 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> with Widg
                   Expanded(
                     child: TextField(
                       controller: _messageController,
+                      focusNode: _messageFocusNode,
                       decoration: InputDecoration(
                         hintText: '輸入訊息...',
                         border: OutlineInputBorder(
@@ -481,6 +537,8 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> with Widg
                           : const Icon(Icons.send, color: Colors.white, size: 20),
                       onPressed: isSending ? null : _sendMessage,
                     ),
+                  ),
+                    ],
                   ),
                 ],
               ),

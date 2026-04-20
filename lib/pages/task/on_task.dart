@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_taxi_chinghsien/models/user.dart';
 import 'package:flutter_taxi_chinghsien/notifier_models/task_model.dart';
@@ -39,7 +40,7 @@ class OnTask extends StatefulWidget {
   _OnTaskState createState() => _OnTaskState();
 }
 
-class _OnTaskState extends State<OnTask> {
+class _OnTaskState extends State<OnTask> with WidgetsBindingObserver {
 
   bool isPassengerOnBoard = false;
 
@@ -49,6 +50,9 @@ class _OnTaskState extends State<OnTask> {
   bool isRequesting = false;
   bool isAddressCopied = false;
   int unreadMessageCount = 0; // 未讀消息數（從 API 獲取）
+  final AudioPlayer _chatSoundPlayer = AudioPlayer();
+  bool _isAppInForeground = true;
+  int? _previousUnreadMessageCount;
 
   TextEditingController priceController = TextEditingController();
   Timer? _taskTimer;
@@ -109,6 +113,7 @@ class _OnTaskState extends State<OnTask> {
     // TODO: implement initState
     // fetchNewTask();
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     var userModel = context.read<UserModel>();
     userToken = userModel.token!;
 
@@ -151,6 +156,24 @@ class _OnTaskState extends State<OnTask> {
       });
     }
 
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 僅 resumed 會在 inactive（轉場、推頁、部分系統 UI）時變 false，導致前景仍不播音
+    _isAppInForeground = state == AppLifecycleState.resumed ||
+        state == AppLifecycleState.inactive;
+  }
+
+  Future<void> _playUnreadIncreaseSound() async {
+    if (!_isAppInForeground) return;
+    try {
+      await _chatSoundPlayer.stop();
+      await _chatSoundPlayer.play(AssetSource('chat_sound.mp3'));
+      print('[OnTask][音效] 已觸發播放 chat_sound');
+    } catch (e) {
+      print('[OnTask][音效] 播放聊天提示音失敗: $e');
+    }
   }
 
   Future<void> _startTaskTimer() async {
@@ -215,6 +238,8 @@ class _OnTaskState extends State<OnTask> {
   @override
   void dispose() {
     // TODO: implement dispose
+    WidgetsBinding.instance.removeObserver(this);
+    _chatSoundPlayer.dispose();
     super.dispose();
     if(_taskTimer!=null){
       print('cancel onTask timer');
@@ -848,9 +873,22 @@ class _OnTaskState extends State<OnTask> {
       
       // 更新未讀消息數
       if (map.containsKey('case_message_unread_count')) {
+        final newUnread = (map['case_message_unread_count'] as num?)?.toInt() ?? 0;
+        final prev = _previousUnreadMessageCount;
+        final shouldPlayUnreadSound =
+            _isAppInForeground && prev != null && newUnread > prev;
+
         setState(() {
-          unreadMessageCount = map['case_message_unread_count'] ?? 0;
+          unreadMessageCount = newUnread;
         });
+        _previousUnreadMessageCount = newUnread;
+
+        print(
+            '[OnTask][未讀音效] prev=$prev new=$newUnread foreground=$_isAppInForeground shouldPlay=$shouldPlayUnreadSound',
+        );
+        if (shouldPlayUnreadSound) {
+          _playUnreadIncreaseSound();
+        }
         print('[OnTask] 未讀消息數: $unreadMessageCount');
       }
 
