@@ -53,6 +53,10 @@ class _RecentOrderDetailDialogState extends State<RecentOrderDetailDialog> {
             const SizedBox(height: 10,),
             Text('車資 \$ ${widget.theCase.caseMoney} '),
             const SizedBox(height: 10,),
+            if ((widget.theCase.returnMoney ?? 0) != 0) ...[
+              Text('加扣儲值金：${widget.theCase.returnMoney} '),
+              const SizedBox(height: 10,),
+            ],
             Text('備註：${widget.theCase.memo ?? '無'} '),
           ],
         ),
