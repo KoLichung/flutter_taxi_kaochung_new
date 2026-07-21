@@ -53,6 +53,9 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> with Widg
   List<CaseMessage> messages = [];
   bool isLoading = false;
   bool isSending = false;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  String? _nextPageUrl;
   bool _isAppInForeground = true;
   bool _hasInitializedMessages = false;
   Timer? _pollingTimer; // 輪詢定時器
@@ -62,6 +65,7 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> with Widg
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _scrollController.addListener(_onScroll);
     _loadMessages();
     _startPolling();
   }
@@ -73,8 +77,17 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> with Widg
     _chatSoundPlayer.dispose();
     _messageController.dispose();
     _messageFocusNode.dispose();
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // 往上滑接近頂部時載入更舊的訊息（page 2, 3...）
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.pixels <= 200) {
+      _loadMoreMessages();
+    }
   }
 
   @override
@@ -99,44 +112,53 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> with Widg
     }
   }
   
-  // 刷新消息（輪詢使用，靜默刷新）
+  // 刷新消息（輪詢使用，靜默刷新第一頁，保留已載入的舊訊息）
   void _refreshMessages() async {
-    // 不顯示 loading 狀態，靜默刷新
-    final fetchedMessages = await _fetchMessages();
-    
-    if (fetchedMessages != null && mounted) {
-      // 檢查是否有變化：新消息、消息數量改變、或已讀狀態改變
-      final hasNewMessages = fetchedMessages.length != messages.length || 
-          _hasNewMessages(fetchedMessages);
-      final hasReadStatusChanged = _hasReadStatusChanged(fetchedMessages);
-      
-      if (hasNewMessages || hasReadStatusChanged) {
-        final shouldPlayIncomingSound = hasNewMessages &&
-            _hasInitializedMessages &&
-            _isAppInForeground &&
-            _hasIncomingMessagesFromOtherUser(fetchedMessages);
+    final pageResult = await _fetchMessagesPage();
+    if (pageResult == null || !mounted) return;
 
-        print('[輪詢更新] 觸發 UI 更新 - 新消息: $hasNewMessages, 已讀狀態改變: $hasReadStatusChanged');
-        setState(() {
-          final wasAtBottom = _isAtBottom();
-          messages = fetchedMessages;
-          
-          // 如果之前在底部，則滾動到新消息
-          if (wasAtBottom) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _scrollToBottom();
-            });
-          }
-        });
+    final page1Messages = pageResult.messages.reversed.toList();
+    final hasNewMessages = _hasIncomingMessagesFromOtherUser(page1Messages) ||
+        _hasNewMessages(page1Messages);
+    final hasReadStatusChanged = _hasReadStatusChanged(page1Messages);
+    final merged = _mergeWithPage1(page1Messages);
 
-        if (shouldPlayIncomingSound) {
-          _playIncomingMessageSound();
+    if (hasNewMessages || hasReadStatusChanged || merged.length != messages.length) {
+      final shouldPlayIncomingSound = hasNewMessages &&
+          _hasInitializedMessages &&
+          _isAppInForeground &&
+          _hasIncomingMessagesFromOtherUser(page1Messages);
+
+      print('[輪詢更新] 觸發 UI 更新 - 新消息: $hasNewMessages, 已讀狀態改變: $hasReadStatusChanged');
+      setState(() {
+        final wasAtBottom = _isAtBottom();
+        messages = merged;
+
+        if (wasAtBottom) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToBottom();
+          });
         }
-        
-        // 標記消息為已讀
-        await _markMessagesAsRead();
+      });
+
+      if (shouldPlayIncomingSound) {
+        _playIncomingMessageSound();
       }
+
+      await _markMessagesAsRead();
     }
+  }
+
+  /// 用第一頁結果更新最新訊息，保留先前 load more 的舊訊息
+  List<CaseMessage> _mergeWithPage1(List<CaseMessage> page1Messages) {
+    final page1Ids = page1Messages
+        .where((m) => m.id != null)
+        .map((m) => m.id!)
+        .toSet();
+    final olderKept = messages
+        .where((m) => m.id != null && !page1Ids.contains(m.id!))
+        .toList();
+    return [...olderKept, ...page1Messages];
   }
   
   // 檢查是否有新消息
@@ -233,30 +255,29 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> with Widg
     return currentScroll >= maxScroll - 100; // 100px 的容差
   }
 
-  // 載入消息列表
+  // 載入消息列表（第一頁）
   void _loadMessages() async {
     setState(() {
       isLoading = true;
     });
 
-    // 獲取消息列表
-    final fetchedMessages = await _fetchMessages();
-    
-    if (fetchedMessages != null) {
+    final pageResult = await _fetchMessagesPage();
+
+    if (pageResult != null) {
       setState(() {
-        messages = fetchedMessages;
+        messages = pageResult.messages.reversed.toList();
+        _nextPageUrl = pageResult.nextUrl;
+        _hasMore = pageResult.nextUrl != null;
         isLoading = false;
       });
       _hasInitializedMessages = true;
-      
-      // 標記消息為已讀（會從響應中獲取角色）
+
       await _markMessagesAsRead();
-      
-      // 如果還沒有獲取到角色，嘗試從未讀數 API 獲取
+
       if (_userRole == null) {
         await _fetchUnreadCountAndRole();
       }
-      
+
       _scrollToBottom();
     } else {
       setState(() {
@@ -269,6 +290,49 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> with Widg
           content: Text('載入消息失敗'),
           duration: Duration(milliseconds: 800),
         ));
+    }
+  }
+
+  Future<void> _loadMoreMessages() async {
+    if (_isLoadingMore || !_hasMore || _nextPageUrl == null) return;
+
+    setState(() => _isLoadingMore = true);
+
+    final oldMaxExtent = _scrollController.hasClients
+        ? _scrollController.position.maxScrollExtent
+        : 0.0;
+
+    final pageResult = await _fetchMessagesPage(url: _nextPageUrl);
+    if (!mounted) return;
+
+    if (pageResult != null) {
+      final olderMessages = pageResult.messages.reversed.toList();
+      final existingIds = messages
+          .where((m) => m.id != null)
+          .map((m) => m.id!)
+          .toSet();
+      final newOlder = olderMessages
+          .where((m) => m.id != null && !existingIds.contains(m.id!))
+          .toList();
+
+      setState(() {
+        messages = [...newOlder, ...messages];
+        _nextPageUrl = pageResult.nextUrl;
+        _hasMore = pageResult.nextUrl != null;
+        _isLoadingMore = false;
+      });
+
+      // 預置舊訊息後維持目前可視位置
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_scrollController.hasClients) return;
+        final newMaxExtent = _scrollController.position.maxScrollExtent;
+        final delta = newMaxExtent - oldMaxExtent;
+        if (delta > 0) {
+          _scrollController.jumpTo(_scrollController.position.pixels + delta);
+        }
+      });
+    } else {
+      setState(() => _isLoadingMore = false);
     }
   }
 
@@ -463,12 +527,39 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> with Widg
                     : ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.all(16),
-                        itemCount: messages.length,
+                        itemCount: messages.length +
+                            (_isLoadingMore ? 1 : 0) +
+                            (!_hasMore && messages.isNotEmpty ? 1 : 0),
                         itemBuilder: (context, index) {
-                          final message = messages[index];
-                          final isMyMsg = _isMyMessage(message);
-                          
-                          return _buildMessageBubble(message, isMyMsg);
+                          if (_isLoadingMore && index == 0) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+
+                          final headerCount = _isLoadingMore ? 1 : 0;
+                          if (!_hasMore &&
+                              index == headerCount &&
+                              messages.isNotEmpty) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Center(
+                                child: Text(
+                                  '已顯示全部訊息',
+                                  style: TextStyle(
+                                      color: Colors.grey, fontSize: 12),
+                                ),
+                              ),
+                            );
+                          }
+
+                          final messageIndex = index -
+                              headerCount -
+                              (!_hasMore && messages.isNotEmpty ? 1 : 0);
+                          final message = messages[messageIndex];
+                          return _buildMessageBubble(
+                              message, _isMyMessage(message));
                         },
                       ),
           ),
@@ -1108,75 +1199,47 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> with Widg
     }
   }
 
-  // API: 獲取消息列表
-  Future<List<CaseMessage>?> _fetchMessages() async {
+  // API: 獲取一頁消息（預設第一頁；load more 傳 next url）
+  // 回傳 API 原始順序（通常最新在前），呼叫端自行 reverse 用於顯示
+  Future<_CaseMessagePageResult?> _fetchMessagesPage({String? url}) async {
     try {
-      print('[API] 獲取消息列表...');
-      
+      print('[API] 獲取消息列表... url=${url ?? 'first page'}');
+
       final userModel = context.read<UserModel>();
-      final path = ServerApi.PATH_CASE_MESSAGE_LIST.replaceAll('{case_id}', widget.theCase.id.toString());
-      
+      final path = ServerApi.PATH_CASE_MESSAGE_LIST
+          .replaceAll('{case_id}', widget.theCase.id.toString());
+
+      final uri = url != null
+          ? Uri.parse(url)
+          : ServerApi.standard(path: path);
+
       final response = await http.get(
-        ServerApi.standard(path: path),
+        uri,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Token ${userModel.token}',
         },
       );
-      
+
       print('[API] 獲取消息列表響應: ${response.statusCode}');
-      
+
       if (response.statusCode == 200) {
         final data = jsonDecode(utf8.decode(response.body.runes.toList()));
-        print('[API] 獲取到 ${data['count']} 條消息');
-        print('[消息] 當前用戶ID: ${userModel.user?.id}');
-        
+        print('[API] 獲取到 ${data['count']} 條消息, next=${data['next']}');
+
         final List<CaseMessage> messageList = [];
-        int imageCount = 0;
-        int textCount = 0;
-        
         for (var item in data['results']) {
-          final message = CaseMessage.fromJson(item);
-          messageList.add(message);
-          
-          // 詳細 log 每條消息的已讀狀態
-          print('[消息解析] ==========================================');
-          print('[消息解析] 消息 ID: ${message.id}');
-          print('[消息解析] 消息類型: ${message.messageType}');
-          print('[消息解析] 消息內容: ${message.content}');
-          print('[消息解析] 發送者 ID: ${message.sender}');
-          print('[消息解析] 當前用戶 ID: ${userModel.user?.id}');
-          print('[消息解析] 是否為我的消息: ${message.sender == userModel.user?.id}');
-          print('[消息解析] isRead (舊字段): ${message.isRead}');
-          print('[消息解析] isReadByDriver: ${message.isReadByDriver}');
-          print('[消息解析] isReadByDispatcher: ${message.isReadByDispatcher}');
-          print('[消息解析] readByDriverAt: ${message.readByDriverAt}');
-          print('[消息解析] readByDispatcherAt: ${message.readByDispatcherAt}');
-          print('[消息解析] 原始 JSON: ${jsonEncode(item)}');
-          print('[消息解析] ==========================================');
-          
-          if (message.messageType == 'image') {
-            imageCount++;
-            print('[圖片消息 $imageCount]');
-            print('  ID: ${message.id}');
-            print('  Sender: ${message.sender} (${message.senderName})');
-            print('  Image URL: ${message.imageUrl}');
-            print('  Image Key: ${message.imageKey}');
-            print('  Created At: ${message.createdAt}');
-          } else if (message.messageType == 'text') {
-            textCount++;
-          }
+          messageList.add(CaseMessage.fromJson(item));
         }
-        
-        print('[消息統計] 文字: $textCount, 圖片: $imageCount, 總計: ${messageList.length}');
-        
-        // 反轉列表，讓最舊的消息在上面，最新的在下面
-        return messageList.reversed.toList();
+
+        return _CaseMessagePageResult(
+          messages: messageList,
+          nextUrl: data['next'] as String?,
+        );
       } else {
         print('[API] 獲取消息列表失敗: ${response.body}');
         return null;
       }
-      
     } catch (e) {
       print('[API] 獲取消息列表錯誤: $e');
       return null;
@@ -1238,6 +1301,16 @@ class _CaseMessageDetailPageState extends State<CaseMessageDetailPage> with Widg
       ),
     );
   }
+}
+
+class _CaseMessagePageResult {
+  final List<CaseMessage> messages;
+  final String? nextUrl;
+
+  _CaseMessagePageResult({
+    required this.messages,
+    this.nextUrl,
+  });
 }
 
 // 圖片預覽頁面

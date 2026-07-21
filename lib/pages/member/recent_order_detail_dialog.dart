@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../../color.dart';
 import '../../models/case.dart';
+import '../task/case_message_detail_page.dart';
 
 
 class RecentOrderDetailDialog extends StatefulWidget {
@@ -64,11 +65,28 @@ class _RecentOrderDetailDialogState extends State<RecentOrderDetailDialog> {
       backgroundColor: AppColor.primary,
       actions: <Widget>[
         OutlinedButton(
-            style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white)),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            child: const Text('確定', style: TextStyle(color: Colors.white)))
+          style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white)),
+          onPressed: () {
+            Navigator.of(context).pop();
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CaseMessageDetailPage(
+                  theCase: widget.theCase,
+                  unreadCount: 0,
+                ),
+              ),
+            );
+          },
+          child: const Text('查看對話', style: TextStyle(color: Colors.white)),
+        ),
+        OutlinedButton(
+          style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white)),
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          child: const Text('確定', style: TextStyle(color: Colors.white)),
+        ),
       ],
     );
   }

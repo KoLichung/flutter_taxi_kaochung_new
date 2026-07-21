@@ -1,3 +1,81 @@
+class CaseMessageLatestMessage {
+  final int id;
+  final String messageType;
+  final String content;
+  final String? imageUrl;
+  final int senderId;
+  final String senderName;
+  final DateTime createdAt;
+
+  CaseMessageLatestMessage({
+    required this.id,
+    required this.messageType,
+    required this.content,
+    this.imageUrl,
+    required this.senderId,
+    required this.senderName,
+    required this.createdAt,
+  });
+
+  factory CaseMessageLatestMessage.fromJson(Map<String, dynamic> json) {
+    return CaseMessageLatestMessage(
+      id: json['id'],
+      messageType: json['message_type'] ?? 'text',
+      content: json['content'] ?? '',
+      imageUrl: json['image_url'],
+      senderId: json['sender_id'] ?? 0,
+      senderName: json['sender_name'] ?? '',
+      createdAt: DateTime.parse(json['created_at']),
+    );
+  }
+}
+
+class CaseMessageListItem {
+  final int id;
+  final String caseNumber;
+  final String caseState;
+  final String driverName;
+  final String driverNickName;
+  final String dispatcherName;
+  final String dispatcherNickName;
+  final CaseMessageLatestMessage? latestMessage;
+  final int unreadCount;
+  final DateTime createTime;
+  final String onAddress;
+
+  CaseMessageListItem({
+    required this.id,
+    required this.caseNumber,
+    required this.caseState,
+    required this.driverName,
+    required this.driverNickName,
+    required this.dispatcherName,
+    required this.dispatcherNickName,
+    this.latestMessage,
+    required this.unreadCount,
+    required this.createTime,
+    required this.onAddress,
+  });
+
+  factory CaseMessageListItem.fromJson(Map<String, dynamic> json) {
+    return CaseMessageListItem(
+      id: json['id'],
+      caseNumber: json['case_number'] ?? '',
+      caseState: json['case_state'] ?? '',
+      driverName: json['driver_name'] ?? '',
+      driverNickName: json['driver_nick_name'] ?? '',
+      dispatcherName: json['dispatcher_name'] ?? '',
+      dispatcherNickName: json['dispatcher_nick_name'] ?? '',
+      latestMessage: json['latest_message'] != null
+          ? CaseMessageLatestMessage.fromJson(json['latest_message'])
+          : null,
+      unreadCount: json['unread_count'] ?? 0,
+      createTime: DateTime.parse(json['create_time']),
+      onAddress: json['on_address'] ?? '',
+    );
+  }
+}
+
 class CaseMessage {
   int? id;
   int? caseId;

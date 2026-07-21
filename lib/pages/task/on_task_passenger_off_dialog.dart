@@ -39,13 +39,17 @@ class _OnTaskPassengerOffDialogState extends State<OnTaskPassengerOffDialog> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('本趟結算車資：'),
-                Text('${widget.task_price}'),
+                Text(
+                  widget.return_money != 0
+                      ? '${widget.task_price}+${widget.return_money}'
+                      : '${widget.task_price}',
+                ),
               ],
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('扣款前儲值金額：'),
+                const Text('扣除前儲值金額：'),
                 Text('${widget.before_left_money}'),
               ],
             ),
@@ -60,15 +64,15 @@ class _OnTaskPassengerOffDialogState extends State<OnTaskPassengerOffDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('加扣儲值金：'),
-                  Text('${widget.return_money}'),
+                  const Text('加扣儲值金：', style: TextStyle(color: Colors.red)),
+                  Text('${widget.return_money}', style: const TextStyle(color: Colors.red)),
                 ],
               ),
             const Divider(thickness: 1,),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('扣款後餘額：'),
+                const Text('扣除後餘額：'),
                 Text('${widget.after_left_money}'),
               ],
             ),

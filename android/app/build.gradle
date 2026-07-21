@@ -16,6 +16,18 @@ if (localPropertiesFile.exists()) {
     }
 }
 
+def pubspecFile = rootProject.file('../pubspec.yaml')
+def pubspecVersion = '1.0.0+1'
+if (pubspecFile.exists()) {
+    pubspecFile.eachLine { line ->
+        def match = line =~ /^version:\s*(\S+)/
+        if (match) pubspecVersion = match[0][1]
+    }
+}
+def pubspecVersionParts = pubspecVersion.tokenize('+')
+def pubspecVersionName = pubspecVersionParts[0]
+def pubspecVersionCode = pubspecVersionParts.size() > 1 ? pubspecVersionParts[1].toInteger() : 1
+
 android {
     namespace = "com.chijia.flutter_taxi_chinghsien"
     compileSdk = 36
@@ -38,8 +50,8 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24
         targetSdk = 36
-        versionCode = localProperties.getProperty('flutter.versionCode')?.toInteger() ?: 1
-        versionName = localProperties.getProperty('flutter.versionName') ?: '1.0.0'
+        versionCode = pubspecVersionCode
+        versionName = pubspecVersionName
     }
 
     buildTypes {

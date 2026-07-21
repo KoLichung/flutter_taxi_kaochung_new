@@ -23,7 +23,9 @@ import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'on_task.dart';
+import 'case_message_list_page.dart';
 
+import 'package:badges/badges.dart' as badges;
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 import 'package:http/http.dart' as http;
 
@@ -39,6 +41,7 @@ class _HomePageState extends State<HomePage> {
   bool _isOnlining = false;
   Timer? _timer;
   int timerPeriod = 3;
+  int _totalUnreadCaseMessageCount = 0;
 
   late List<Case> myCases = <Case>[];
 
@@ -226,7 +229,39 @@ class _HomePageState extends State<HomePage> {
         body: Consumer<UserModel>(builder: (context, userModel, child) =>
         userModel.isOnline? checkIsTasks() : offlineScene(),
         ),
+        floatingActionButton: _buildMessageFab(),
       )
+    );
+  }
+
+  Widget _buildMessageFab() {
+    final icon = _totalUnreadCaseMessageCount > 0
+        ? badges.Badge(
+            badgeContent: Text(
+              _totalUnreadCaseMessageCount > 99
+                  ? '99+'
+                  : '$_totalUnreadCaseMessageCount',
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+            ),
+            badgeStyle: const badges.BadgeStyle(
+              badgeColor: AppColor.red,
+              padding: EdgeInsets.all(6),
+            ),
+            position: badges.BadgePosition.topEnd(top: -17, end: -12),
+            child: const Icon(Icons.chat_bubble, color: Colors.white),
+          )
+        : const Icon(Icons.chat_bubble, color: Colors.white);
+
+    return FloatingActionButton(
+      backgroundColor: AppColor.primary,
+      shape: const CircleBorder(),
+      onPressed: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CaseMessageListPage()),
+        );
+      },
+      child: icon,
     );
   }
 
@@ -636,6 +671,8 @@ class _HomePageState extends State<HomePage> {
       userModel.user!.leftMoney = map["left_money"];
       userModel.user!.violation_time = map["violation_time"];
       userModel.user!.isPassed = map["is_passed"];
+      _totalUnreadCaseMessageCount =
+          (map["total_unread_case_message_count"] as int?) ?? 0;
 
       if (map["penalty_datetime"] != null){
         userModel.user!.penalty_datetime = DateTime.parse(map["penalty_datetime"]);
