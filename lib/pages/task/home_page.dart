@@ -55,6 +55,7 @@ class _HomePageState extends State<HomePage> {
 
   bool isRefusing = false;
   bool isCaseConfirming = false;
+  final Set<int> _notVoluntaryRefusedCaseIds = {};
 
   // int _violation_time = 0;
   // DateTime? _penalty_datetime;
@@ -716,7 +717,15 @@ class _HomePageState extends State<HomePage> {
 
           // 如果拒絕中, 跳過更新一次！
           if(!isRefusing) {
-            myCases = cases;
+            // 第一張倒數還沒結束時，後面的單直接退回，畫面上只留一張
+            if (cases.length > 1 && checkSecond(cases.first) > 0) {
+              for (final later in cases.skip(1)) {
+                if (later.caseState == 'dispatching') {
+                  _putCaseRefuse(token, later, notVoluntary: true);
+                }
+              }
+            }
+            myCases = cases.take(1).toList();
           }else{
             isRefusing = false;
           }
@@ -827,7 +836,7 @@ class _HomePageState extends State<HomePage> {
   Future _putCaseConfirm(String token, Case theCase) async {
     print("case confirm");
     isCaseConfirming = true;
-    
+
     // 立即停止所有定時器，避免在接單過程中被干擾
     if(_timer!=null){
       print('cancel timer immediately when start confirming');
@@ -946,14 +955,22 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future _putCaseRefuse(String token, Case theCase) async {
-    print("case confirm");
+  Future _putCaseRefuse(String token, Case theCase, {bool notVoluntary = false}) async {
+    print(notVoluntary ? "case refuse not voluntary" : "case confirm");
+
+    if (notVoluntary) {
+      final id = theCase.id;
+      if (id == null || !_notVoluntaryRefusedCaseIds.add(id)) {
+        return;
+      }
+    }
 
     String path = ServerApi.PATH_CASE_REFUSE;
 
     try {
       final queryParameters = {
         'case_id': theCase.id!.toString(),
+        if (notVoluntary) 'not_voluntary': 'true',
       };
 
       final response = await http.put(
@@ -965,6 +982,11 @@ class _HomePageState extends State<HomePage> {
       );
 
       _printLongString(response.body);
+
+      if (notVoluntary) {
+        print('not voluntary refuse case ${theCase.id}');
+        return;
+      }
 
       Map<String, dynamic> map = json.decode(utf8.decode(response.body.runes.toList()));
 
@@ -982,6 +1004,10 @@ class _HomePageState extends State<HomePage> {
       setState(() {});
     } catch (e) {
       print(e);
+      if (notVoluntary) {
+        _notVoluntaryRefusedCaseIds.remove(theCase.id);
+        return;
+      }
       ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(SnackBar(content: Text(e.toString())));
       // return "error";
     }
