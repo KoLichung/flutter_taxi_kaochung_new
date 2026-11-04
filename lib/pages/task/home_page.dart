@@ -40,7 +40,7 @@ class _HomePageState extends State<HomePage> {
 
   bool _isOnlining = false;
   Timer? _timer;
-  int timerPeriod = 3;
+  int timerPeriod = 4;
   int _totalUnreadCaseMessageCount = 0;
 
   late List<Case> myCases = <Case>[];
@@ -56,6 +56,10 @@ class _HomePageState extends State<HomePage> {
   bool isRefusing = false;
   bool isCaseConfirming = false;
   final Set<int> _notVoluntaryRefusedCaseIds = {};
+
+  bool _checkingOnTaskPref = false;
+  bool _showManualPull = false;
+  bool _isPullingCase = false;
 
   // int _violation_time = 0;
   // DateTime? _penalty_datetime;
@@ -105,19 +109,9 @@ class _HomePageState extends State<HomePage> {
     }
 
     if(userModel.isOnline && userModel.user!.isPassed!){
-        _fetchCases(userModel.token!);
+        _checkingOnTaskPref = true;
         _putUpdateOnlineState(userModel.token!, true, false);
-        print('start timer');
-        _timer = Timer.periodic(Duration(seconds: timerPeriod), (timer) {
-          // print('Hello world, timer: $timer.tick');
-          _fetchCases(userModel.token!);
-        });
-        bg.BackgroundGeolocation.start();
-        
-        // 延遲獲取位置，解決自動登入時的時序問題
-        Future.delayed(Duration(seconds: 2), () {
-          _getCurrentPosition();
-        });
+        _afterBecameOnline(userModel);
     }
 
   }
@@ -307,20 +301,19 @@ class _HomePageState extends State<HomePage> {
             var userModel = context.read<UserModel>();
 
             if(userModel.user!.isPassed!) {
+              setState(() {
+                _checkingOnTaskPref = true;
+              });
               final result = await _putUpdateOnlineState(userModel.token!, true, false);
               // result ok 為成功上線
               if(result=="ok"){
-                _fetchCases(userModel.token!);
-                print('start timer');
-                _timer = Timer.periodic(Duration(seconds: timerPeriod), (timer) {
-                  // print('Hello world, timer: $timer.tick');
-                  _fetchCases(userModel.token!);
-                });
-                bg.BackgroundGeolocation.start();
-                Future.delayed(Duration(seconds: 2), () {
-                  _getCurrentPosition();
-                });
+                await _afterBecameOnline(userModel);
               }else{
+                if (mounted) {
+                  setState(() {
+                    _checkingOnTaskPref = false;
+                  });
+                }
                 // print('in penalty or no money');
                 ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('處罰中 或 需充值~無法上線~')));
                 _isOnlining = false;
@@ -335,8 +328,98 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Future<void> _afterBecameOnline(UserModel userModel) async {
+    bg.BackgroundGeolocation.start();
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        _getCurrentPosition();
+      }
+    });
+
+    final recover = await TaskModel.shouldRecoverOnTask();
+    if (!mounted) return;
+
+    if (recover) {
+      if (_timer != null) {
+        _timer!.cancel();
+        _timer = null;
+      }
+      setState(() {
+        _checkingOnTaskPref = false;
+        _showManualPull = true;
+      });
+      return;
+    }
+
+    setState(() {
+      _checkingOnTaskPref = false;
+      _showManualPull = false;
+    });
+    _startCasePolling(userModel);
+  }
+
+  void _startCasePolling(UserModel userModel) {
+    _showManualPull = false;
+    _fetchCases(userModel.token!);
+    if (_timer != null) return;
+    print('start timer');
+    _timer = Timer.periodic(Duration(seconds: timerPeriod), (timer) {
+      _fetchCases(userModel.token!);
+    });
+  }
+
+  DateTime _caseConfirmTime(Case theCase) {
+    final raw = theCase.confirmTime;
+    if (raw != null && raw.isNotEmpty) {
+      final parsed = DateTime.tryParse(raw);
+      if (parsed != null) return parsed;
+    }
+    return DateTime.now();
+  }
+
+  Future<void> _manualPullCase() async {
+    if (_isPullingCase) return;
+    final userModel = context.read<UserModel>();
+    if (userModel.token == null) return;
+
+    setState(() {
+      _isPullingCase = true;
+    });
+    await _fetchCases(userModel.token!, fromManualPull: true);
+    if (mounted) {
+      setState(() {
+        _isPullingCase = false;
+      });
+    }
+  }
+
+  Widget manualPullScene() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColor.primary,
+            minimumSize: const Size(double.infinity, 56),
+          ),
+          onPressed: _isPullingCase ? null : _manualPullCase,
+          child: Text(
+            _isPullingCase ? '拉單中...' : '任務中,手動拉單',
+            style: const TextStyle(fontSize: 20, color: Colors.white),
+          ),
+        ),
+      ),
+    );
+  }
+
   checkIsTasks(){
     var userModel = context.read<UserModel>();
+    if (_checkingOnTaskPref) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_showManualPull) {
+      return manualPullScene();
+    }
     if (myCases.isEmpty || !userModel.user!.isPassed!){
       return onCallScene(userModel.user!.isPassed!);
     } else {
@@ -642,7 +725,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future _fetchCases(String token) async {
+  Future _fetchCases(String token, {bool fromManualPull = false}) async {
     print('start fetch cases');
     String path = ServerApi.PATH_GET_CASES;
     print(token);
@@ -691,6 +774,7 @@ class _HomePageState extends State<HomePage> {
         ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('您的儲值金額小於0元！')));
       }else{
         List<Case> cases = body.map((value) => Case.fromJson(value)).toList();
+        var enteredActiveTask = false;
         if(cases.isNotEmpty && cases.first.caseState!='dispatching'){
           // 這邊要跳頁,並解除 timer (這邊跟 putConfirm 很像, code 沒有整理)
           print('need push to CurrentTask');
@@ -700,11 +784,15 @@ class _HomePageState extends State<HomePage> {
           taskModel.cases.add(cases.first);
           if(cases.first.caseState=='way_to_catch'){
             if(!isCaseConfirming) {
+              enteredActiveTask = true;
+              _showManualPull = false;
               pushToCurrentTask(cases.first);
             }
           }else if(cases.first.caseState=='canceled' || cases.first.caseState=='finished'){
             print('case state canceled or finished');
           }else{
+            enteredActiveTask = true;
+            _showManualPull = false;
             pushToOnTask(cases.first);
           }
 
@@ -739,6 +827,26 @@ class _HomePageState extends State<HomePage> {
             //   currentTime = 17;
             // }
             _startTaskTimer();
+          }
+        }
+
+        if (fromManualPull && !enteredActiveTask) {
+          await TaskModel.clearOnTaskPref();
+          _showManualPull = false;
+          final showingNewDispatch = cases.isNotEmpty && cases.first.caseState == 'dispatching';
+          if (!showingNewDispatch && mounted) {
+            ScaffoldMessenger.of(context)
+              ..removeCurrentSnackBar()
+              ..showSnackBar(const SnackBar(content: Text('目前沒有進行中的任務')));
+          }
+          if (userModel.isOnline && _timer == null) {
+            print('start timer');
+            _timer = Timer.periodic(Duration(seconds: timerPeriod), (timer) {
+              _fetchCases(userModel.token!);
+            });
+          }
+          if (mounted) {
+            setState(() {});
           }
         }
 
@@ -882,8 +990,13 @@ class _HomePageState extends State<HomePage> {
 
         var taskModel = context.read<TaskModel>();
         theCase.caseState='way_to_catch';
+        if (theCase.confirmTime == null || theCase.confirmTime!.isEmpty) {
+          theCase.confirmTime = DateTime.now().toIso8601String();
+        }
         taskModel.cases.clear();
         taskModel.cases.add(theCase);
+        await TaskModel.saveOnTaskPref(_caseConfirmTime(theCase));
+        _showManualPull = false;
 
         final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => CurrentTask(isOpenCase: false)));
         isCaseConfirming = false;

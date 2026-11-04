@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/case.dart';
 
 class TaskModel extends ChangeNotifier {
@@ -91,7 +91,38 @@ class TaskModel extends ChangeNotifier {
 
     //移除最上面那個 case
     cases.removeAt(0);
+    if (cases.isEmpty) {
+      await clearOnTaskPref();
+    }
     notifyListeners();
+  }
+
+  static Future<void> saveOnTaskPref(DateTime confirmTime) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_on_task', true);
+    await prefs.setString('case_confirm_time', confirmTime.toIso8601String());
+  }
+
+  static Future<void> clearOnTaskPref() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_on_task', false);
+    await prefs.remove('case_confirm_time');
+  }
+
+  /// 確認後 1 小時內，回到首頁時改由司機手動拉回進行中的單。
+  static Future<bool> shouldRecoverOnTask() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('is_on_task') != true) {
+      return false;
+    }
+    final raw = prefs.getString('case_confirm_time');
+    final confirmTime = raw == null ? null : DateTime.tryParse(raw);
+    if (confirmTime == null ||
+        DateTime.now().difference(confirmTime) >= const Duration(hours: 1)) {
+      await clearOnTaskPref();
+      return false;
+    }
+    return true;
   }
 
 }
