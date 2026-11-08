@@ -1045,7 +1045,7 @@ class _HomePageState extends State<HomePage> {
         }
 
         final detail = map['detail']?.toString() ?? '';
-        if (detail.toLowerCase().contains('double dispatch')) {
+        if (detail.toLowerCase().contains('duplicate dispatch')) {
           // 重複派單不提示
         } else if(detail.contains('belong')){
           ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('這個單可能已經被接走！')));
