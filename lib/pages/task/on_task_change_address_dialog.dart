@@ -1,11 +1,5 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_taxi_chinghsien/color.dart';
-import 'package:http/http.dart' as http;
-import 'package:provider/provider.dart';
-import '../../config/serverApi.dart';
-import '../../notifier_models/task_model.dart';
 
 class OnTaskChangeAddressDialog extends StatefulWidget {
 
@@ -13,12 +7,18 @@ class OnTaskChangeAddressDialog extends StatefulWidget {
   const OnTaskChangeAddressDialog({Key? key});
 
   @override
-  _OnTaskChangeAddressDialogState createState() => new _OnTaskChangeAddressDialogState();
+  _OnTaskChangeAddressDialogState createState() => _OnTaskChangeAddressDialogState();
 }
 
 class _OnTaskChangeAddressDialogState extends State<OnTaskChangeAddressDialog> {
 
   TextEditingController addressController = TextEditingController();
+
+  @override
+  void dispose() {
+    addressController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,10 +53,9 @@ class _OnTaskChangeAddressDialogState extends State<OnTaskChangeAddressDialog> {
             child:const  Text('確定', style: TextStyle(color: Colors.white),),
             style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white)),
             onPressed: () {
-              String address = addressController.text;
-              print(address);
+              String address = addressController.text.trim();
               if(address!=''){
-                _getLatLngFromAddress(address);
+                Navigator.pop(context, address);
               }else{
                 ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('地址不可空白！')));
               }
@@ -66,33 +65,4 @@ class _OnTaskChangeAddressDialogState extends State<OnTaskChangeAddressDialog> {
     );
   }
 
-  Future _getLatLngFromAddress(String address) async{
-    String geocodingKey = "AIzaSyCrzmspoFyEFYlQyMqhEkt3x5kkY8U3C-Y";
-    String path = '${ServerApi.PATH_GEOCODE}$address&key=$geocodingKey';
-    print(path);
-    try {
-      final response = await http.get(Uri.parse(path));
-      if (response.statusCode == 200) {
-        Map<String, dynamic> data = json.decode(response.body);
-        print(data['status']);
-        print(data['results'][0]['geometry']['location']);
-
-        if(data['results'][0]['geometry']['location']!=null){
-          var taskModel = context.read<TaskModel>();
-          taskModel.cases.first.offLat = data['results'][0]['geometry']['location']['lat'].toString();
-          taskModel.cases.first.offLng = data['results'][0]['geometry']['location']['lng'].toString();
-          Navigator.pop(context,address);
-        }else{
-          ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('Google無法辨識此地址！')));
-        }
-      }else{
-        ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('Google無法辨識此地址！')));
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('Google無法辨識此地址！')));
-      print(e);
-    }
-  }
-
 }
-

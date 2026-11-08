@@ -176,6 +176,13 @@ class _OnTaskState extends State<OnTask> with WidgetsBindingObserver {
     }
   }
 
+  void _setRouteTracking(bool isMoving) {
+    bg.BackgroundGeolocation.changePace(isMoving).catchError((error) {
+      print('[OnTask] changePace($isMoving) ERROR: $error');
+      return false;
+    });
+  }
+
   Future<void> _startTaskTimer() async {
     // final prefs = await SharedPreferences.getInstance();
     // await prefs.setBool('isOnTask', true);
@@ -222,6 +229,8 @@ class _OnTaskState extends State<OnTask> with WidgetsBindingObserver {
             ..showSnackBar(SnackBar(content: Text('ERROR: $error')));
         });
       });
+      // 略過靜止區，立刻依 distanceFilter 記點，不必先開出約 200 公尺。
+      _setRouteTracking(true);
     }
 
     print('current taskTimer $_taskTimer');
@@ -800,6 +809,7 @@ class _OnTaskState extends State<OnTask> with WidgetsBindingObserver {
         }
         
         taskModel.resetTask();
+        _setRouteTracking(false);
         print('here on task finish');
         // print(taskModel.cases);
         if(_taskTimer!=null){
@@ -941,6 +951,7 @@ class _OnTaskState extends State<OnTask> with WidgetsBindingObserver {
         }
         var taskModel = context.read<TaskModel>();
         taskModel.resetTask();
+        _setRouteTracking(false);
         // resetTask 只是移除最先放入的那個！
 
         //回到首頁並帶參數

@@ -40,7 +40,7 @@ class _HomePageState extends State<HomePage> {
 
   bool _isOnlining = false;
   Timer? _timer;
-  int timerPeriod = 4;
+  int timerPeriod = 5;
   int _totalUnreadCaseMessageCount = 0;
 
   late List<Case> myCases = <Case>[];
@@ -51,7 +51,7 @@ class _HomePageState extends State<HomePage> {
   // );
 
   Timer? _taskTimer;
-  int _taskWaitingTime = 17;
+  int _taskWaitingTime = 19;
 
   bool isRefusing = false;
   bool isCaseConfirming = false;
@@ -68,12 +68,12 @@ class _HomePageState extends State<HomePage> {
     DateTime dispatchTime = myCases.first.dispatchTime!;
     print('dispatch time $dispatchTime');
     DateTime now = DateTime.now();
-    _taskWaitingTime = 18 - now.difference(dispatchTime).inSeconds;
+    _taskWaitingTime = 20 - now.difference(dispatchTime).inSeconds;
 
     const oneSec = Duration(seconds: 1);
     _taskTimer = Timer.periodic(oneSec, (Timer timer) {
         DateTime now = DateTime.now();
-        _taskWaitingTime = 18 - now.difference(dispatchTime).inSeconds;
+        _taskWaitingTime = 20 - now.difference(dispatchTime).inSeconds;
         print('_taskWaitingTime $_taskWaitingTime');
         if(_taskWaitingTime <= 0){
           myCases.clear();
@@ -1044,12 +1044,15 @@ class _HomePageState extends State<HomePage> {
           });
         }
 
-        if(map['detail'].toString().contains('belong')){
+        final detail = map['detail']?.toString() ?? '';
+        if (detail.toLowerCase().contains('double dispatch')) {
+          // 重複派單不提示
+        } else if(detail.contains('belong')){
           ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('這個單可能已經被接走！')));
-        }else if(map['detail'].toString().contains('canceled')){
+        }else if(detail.contains('canceled')){
           ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(const SnackBar(content: Text('任務已取消！')));
         }else{
-          ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(SnackBar(content: Text(map['detail'].toString())));
+          ScaffoldMessenger.of(context)..removeCurrentSnackBar()..showSnackBar(SnackBar(content: Text(detail)));
         }
 
       }
