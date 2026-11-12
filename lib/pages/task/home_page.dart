@@ -1239,7 +1239,9 @@ class _HomePageState extends State<HomePage> {
     var userModel = context.read<UserModel>();
 
     if(userModel.fcmToken==null){
-      await Future.delayed(const Duration(seconds: 5));
+      for (var i = 0; i < 20 && userModel.fcmToken == null; i++) {
+        await Future.delayed(const Duration(seconds: 1));
+      }
     }
 
     try {

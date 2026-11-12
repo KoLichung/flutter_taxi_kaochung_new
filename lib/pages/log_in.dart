@@ -36,22 +36,49 @@ class _LogInState extends State<LogIn> {
   bool isLoading = false;
 
   Future<void> getAPNSToken() async {
-    FirebaseMessaging.instance.requestPermission(
-      announcement: true,
-      carPlay: true,
-      criticalAlert: true,
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-    print('FlutterFire Messaging Example: Getting APNs token...');
-    String? token = await FirebaseMessaging.instance.getAPNSToken();
-    print('Got APNs token: $token');
-    FirebaseMessaging.instance.getToken().then((token){
-      print('the token: ' + token.toString());
-      var userModel = context.read<UserModel>();
-      userModel.fcmToken = token.toString();
-    });
+    final userModel = context.read<UserModel>();
+    try {
+      await FirebaseMessaging.instance.requestPermission(
+        announcement: true,
+        carPlay: true,
+        criticalAlert: true,
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    } catch (e) {
+      print('requestPermission failed: $e');
+    }
+
+    // iOS 27 的 APNs token 常常晚於第一次讀取才送到，不能立刻拿去換 FCM token。
+    const apnsChannel = MethodChannel('com.chijia.flutter_taxi_chinghsien/apns');
+    String? apnsToken;
+    for (var attempt = 1; attempt <= 20; attempt++) {
+      try {
+        await apnsChannel.invokeMethod<bool>('applyAPNSToken');
+      } catch (e) {
+        print('applyAPNSToken failed: $e');
+      }
+      apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+      print('Got APNs token (attempt $attempt): $apnsToken');
+      if (apnsToken != null) {
+        break;
+      }
+      await Future.delayed(const Duration(seconds: 1));
+    }
+
+    if (apnsToken == null) {
+      print('APNs token still null');
+      return;
+    }
+
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      print('the token: $token');
+      userModel.fcmToken = token;
+    } catch (e) {
+      print('getToken failed: $e');
+    }
   }
 
   @override

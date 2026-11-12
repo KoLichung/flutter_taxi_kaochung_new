@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/case.dart';
 
@@ -16,6 +17,8 @@ class TaskModel extends ChangeNotifier {
 
   DateTime? lastRecordTime;
   double currentVelocity = -1;
+  double? _trackLatitude;
+  double? _trackLongitude;
 
   DateTime? startTime;
 
@@ -27,6 +30,36 @@ class TaskModel extends ChangeNotifier {
   void addCase(Case newCase){
     cases.add(newCase);
     notifyListeners();
+  }
+
+  /// 新任務開始時清掉上一點，避免把上一趟的位移算進來。
+  void beginDistanceTracking({double? latitude, double? longitude}) {
+    _trackLatitude = latitude;
+    _trackLongitude = longitude;
+  }
+
+  /// 用實際座標累加里程。外掛的 odometer 在 iOS 27 會停在 0，路線點卻仍有寫入。
+  /// 精準度無效或超過 200 公尺的點略過，10 公尺以內視為靜止抖動。
+  double appendTrackedPoint(double latitude, double longitude, double accuracy) {
+    if (accuracy < 0 || accuracy > 200) {
+      return 0;
+    }
+    final lastLat = _trackLatitude;
+    final lastLng = _trackLongitude;
+    if (lastLat == null || lastLng == null) {
+      _trackLatitude = latitude;
+      _trackLongitude = longitude;
+      return 0;
+    }
+    final meters = Geolocator.distanceBetween(lastLat, lastLng, latitude, longitude);
+    if (meters < 10) {
+      return 0;
+    }
+    _trackLatitude = latitude;
+    _trackLongitude = longitude;
+    totalDistance += meters / 1000.0;
+    notifyListeners();
+    return meters;
   }
 
   int getSecondsTotal(){
@@ -87,6 +120,8 @@ class TaskModel extends ChangeNotifier {
     isOnTask = false;
     lastRecordTime = null;
     currentVelocity = -1;
+    _trackLatitude = null;
+    _trackLongitude = null;
     startTime = null;
 
     //移除最上面那個 case

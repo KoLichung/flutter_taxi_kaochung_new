@@ -199,6 +199,7 @@ class _OnTaskState extends State<OnTask> with WidgetsBindingObserver {
           ..showSnackBar(const SnackBar(content: Text('開始計算路程！')));
       });
       taskModel.isOnTask = true;
+      taskModel.beginDistanceTracking();
 
       // 保存第一筆位置數據
       try {
@@ -207,6 +208,10 @@ class _OnTaskState extends State<OnTask> with WidgetsBindingObserver {
         print('[OnTask] 獲取初始位置: $position');
 
         if (position != null) {
+          taskModel.beginDistanceTracking(
+            latitude: position.latitude,
+            longitude: position.longitude,
+          );
           await RouteExportService.saveInitialLocation(
             latitude: position.latitude,
             longitude: position.longitude,

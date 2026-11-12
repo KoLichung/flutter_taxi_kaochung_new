@@ -4,7 +4,9 @@ import 'dart:convert';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 // import 'package:flutter_line_sdk/flutter_line_sdk.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_taxi_chinghsien/pages/log_in.dart';
@@ -88,6 +90,15 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  if (defaultTargetPlatform == TargetPlatform.iOS) {
+    try {
+      final applied = await const MethodChannel('com.chijia.flutter_taxi_chinghsien/apns')
+          .invokeMethod<bool>('applyAPNSToken');
+      print('applyAPNSToken: $applied');
+    } catch (e) {
+      print('applyAPNSToken failed: $e');
+    }
+  }
   
   try {
     await _configureAmplify();
@@ -318,7 +329,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
       var taskModel = context.read<TaskModel>();
       if(taskModel.isOnTask){
-        taskModel.totalDistance = location.odometer/1000.0;
+        final addedMeters = taskModel.appendTrackedPoint(
+          location.coords.latitude,
+          location.coords.longitude,
+          location.coords.accuracy,
+        );
+        if (addedMeters > 0) {
+          print('[distance] +${addedMeters.toStringAsFixed(1)}m accuracy=${location.coords.accuracy} totalKm=${taskModel.totalDistance.toStringAsFixed(3)} odometer=${location.odometer}');
+        }
         
         // 如果正在執行任務，保存位置記錄到本地資料庫
         try {
